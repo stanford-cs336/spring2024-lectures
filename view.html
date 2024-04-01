@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>View</title>
+</head>
+<body>
+    <div id="content"></div>
+    <div id="new-content" style="display: none;"></div>
+
+    <script>
+        // Number of things that we're waiting to load
+        let numWaiting = 0;
+
+        function reload() {
+            // Remove old script element if it exists
+            const oldScript = document.getElementById("script");
+            if (oldScript) {
+                document.head.removeChild(oldScript);
+            }
+
+            // Create a new script element
+            const script = document.createElement("script");
+            script.id = "script";
+            script.type = "text/javascript";
+            script.src = "content.js?" + new Date().getTime(); // Append timestamp to avoid caching
+            numWaiting += 1;
+            script.onload = onLoad;
+            document.head.appendChild(script);
+        }
+
+        // Functions that the script can call
+        function addText(stack, text) {
+            const newContent = document.getElementById("new-content");
+
+            const div = document.createElement("div");
+            div.appendChild(document.createTextNode(stack.join(" / ") + ": " + text));
+            newContent.appendChild(div);
+        }
+
+        function addImage(stack, path) {
+            const newContent = document.getElementById("new-content");
+
+            const image = document.createElement("img");
+            // Append a unique query string to the image src URL to bypass the cache
+            image.src = path + "?" + new Date().getTime();
+            numWaiting += 1;
+            image.onload = onLoad;
+            newContent.appendChild(image);
+        }
+
+        function onLoad() {
+            numWaiting -= 1;
+            if (numWaiting === 0) {
+                // Everything is done waiting, can copy the content to the visible element
+                const content = document.getElementById("content");
+                const newContent = document.getElementById("new-content");
+                content.innerHTML = newContent.innerHTML;
+                newContent.innerHTML = "";
+            }
+        }
+
+        setInterval(reload, 1000);
+    </script>
+</body>
+</html>
