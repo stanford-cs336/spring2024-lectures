@@ -1,0 +1,18 @@
+# Basic
+requests
+tqdm
+sqlitedict
+torch
+wandb
+
+# Existing libraries
+#transformers
+datasets
+openai
+tiktoken
+
+# Data
+warcio
+markdownify
+#readabilipy
+#html2text
