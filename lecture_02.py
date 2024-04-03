@@ -9,7 +9,7 @@ from typing import Iterable, Tuple
 from torch import nn
 import numpy as np
 
-def lecture2():
+def lecture_02():
     note("## Pytorch primitives")
 
     note("We will build up all the primitives we need gradually.")

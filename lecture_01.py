@@ -11,7 +11,7 @@ from tokenization import Tokenizer, train_bpe, tokenization_unit
 from sqlitedict import SqliteDict
 
 
-def lecture1():
+def lecture_01():
     prelude()
     course_logistics()
     why_this_course()
@@ -145,48 +145,6 @@ def examples():
     note("They can mostly follow instructions, generate fluent and semantically relevant text.")
     note("How do they work?  How can we build one ourselves?")
 
-    
-def ensure_directory_exists(path: str):
-    if not os.path.exists(path):
-        os.mkdir(path)
-
-
-def query_model(model: str, prompt: str) -> str:
-    """Query `model` with the `prompt` and return the top-1 response."""
-    ensure_directory_exists("var")
-    cache = SqliteDict("var/query_model_cache.db")
-    key = model + ":" + prompt
-    if key in cache:
-        return cache[key]
-
-    from openai import OpenAI
-    if model.startswith("gpt-"):
-        # Use an actual OpenAI model
-        client = OpenAI(
-            api_key = os.getenv("OPENAI_API_KEY"),
-        )
-    else:
-        # Together API serves open models using the same OpenAI interface
-        client = OpenAI(
-            api_key=os.environ.get("TOGETHER_API_KEY"),
-            base_url="https://api.together.xyz/v1",
-        )
-
-    system_prompt = "You are a helpful and harmless assistant."
-
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ],
-    )
-
-    value = response.choices[0].message.content
-    cache[key] = value
-    cache.commit()
-
-    return value
 
 def brief_history():
     note("Language model to measure the entropy of English"), see(shannon1950)
@@ -207,7 +165,7 @@ def brief_history():
     note("Hugging Face / BigScience's BLOOM: focused on data sourcing"), see(bloom)
     note("Google's PaLM (540B): massive scale, undertrained"), see(palm)
     note("DeepMind's Chinchilla (70B): compute-optimal scaling laws"), see(chinchilla)
-    
+
     note("Meta's LLaMA (7B, .., 65B): overtrained, optimized the 7B"), see(llama)
     note("Mistral (7B): overtrained, very good 7B model"), see(mistral_7b)
     note("Many other open models: Yi, DeepSeek, Qwen, StableLM, OLMo, Gemma, etc.")
@@ -224,114 +182,6 @@ def brief_history():
     note("Summary")
     note("- Interplay between open and closed models")
     note("- Emphasis on number of parameters, then compute-optimal, then overtrained")
-
-
-class TransformerLM(nn.Module):
-    def __init__(self):
-        note("Original Transformer"), see(transformer)
-        note("Many variants exist that improve on the original "
-             "(e.g., post-norm, SwiGLU, RMSNorm, parallel layers, RoPE, GQA)")
-
-    def forward(self, x):
-        pass
-
-def pretrain(model: TransformerLM, data: Iterable[Document], tokenizer: Tokenizer):
-    note("Specify the optimizer (e.g., AdamW)"), see(adamw)
-    note("Specify the learning rate schedule (e.g., cosine)")
-    note("Set other hyperparameters (batch size, number of heads, hidden dimension)")
-
-
-@dataclass(frozen=True)
-class InstructionExample:
-    prompt: str
-    response: str
-
-
-def get_alpaca_dataset() -> Iterable[InstructionExample]:
-    from datasets import load_dataset
-    dataset = load_dataset("tatsu-lab/alpaca")
-    for datum in dataset["train"]:
-        prompt = datum["instruction"]
-        if datum["input"]:
-            prompt += "\n" + datum["input"]
-        response = datum["output"]
-        yield InstructionExample(prompt, response)
-
-
-def get_instruction_data() -> List[InstructionExample]:
-    note("Instruction data: (prompt, response) pairs")
-    note("Intuition: base model already has the skills, "
-         "just need few examples to surface them."), see(lima)
-    # Stub implementation: just grab the Alpaca dataset
-    examples = list(islice(get_alpaca_dataset(), 0, 100))
-    return examples
-
-def instruction_tune(model: TransformerLM, data: Iterable[InstructionExample], tokenizer: Tokenizer):
-    note("Given (prompt, response) pairs, we perform supervised learning.")
-    note("Specifically, fine-tune `model` to maximize p(response | prompt).")
-
-
-@dataclass(frozen=True)
-class PreferenceExample:
-    prompt: str
-    response1: str
-    response2: str
-    preference: str
-
-
-def preference_tune(model: TransformerLM, data: Iterable[PreferenceExample], tokenizer: Tokenizer):
-    note("Given (prompt, response1, response2, preference) tuples, tune the model.")
-    note("Traditionally: "
-         "Proximal Policy Optimization (PPO) from reinforcement learning"), see(instruct_gpt)
-    note("Recently, effective and simpler approach: "
-         "Direct Policy Optimization (DPO)"), see(dpo)
-
-
-def get_raw_data() -> List[Document]:
-    """Return raw data."""
-    note("Data does not just fall from the sky.")
-    note("Sources: webpages scraped from the Internet, books, arXiv papers, GitHub code, etc.")
-    note("Appeal to fair use to train on copyright data?"), see("https://arxiv.org/pdf/2303.15715.pdf")
-    note("Might have to license data (e.g., Google with Reddit data)"), see("https://www.reuters.com/technology/reddit-ai-content-licensing-deal-with-google-sources-say-2024-02-22/")
-    note("Formats: HTML, PDF, directories (not text!)")
-    # Stub implementation: grab one URL
-    urls = ["https://en.wikipedia.org/wiki/Sphinx"]
-    documents = [Document(url, open(cached(url)).read()) for url in urls]
-    return documents
-
-
-def process_data(documents: List[Document]) -> List[Document]:
-    note("Preprocess the raw data")
-    note("- Filtering: keep data of high quality, remove harmful content")
-    note("- Deduplication: don't waste time training, avoid memorization")
-    note("- Conversion: project HTML to text (preserve content, structure)")
-    # Stub implementation: just convert html to text
-    documents = list(preprocess(documents))
-    return documents
-
-
-def train_tokenizer(documents: Iterable[Document]) -> Tokenizer:
-    note("Tokenizers convert text into sequences of integers (tokens)")
-    note("Balance tradeoff between vocabulary size and compression ratio")
-    note("This course: Byte-Pair Encoding (BPE) tokenizer"), see(train_bpe)
-    # Stub implementation: just return the pre-trained tokenizer
-    import tiktoken
-    return tiktoken.get_encoding("gpt2")
-
-
-def generate_preference_data(model: TransformerLM) -> List[PreferenceExample]:
-    note("Now we have a preliminary instruction following `model`.")
-    note("Data: generate multiple responses using `model` (e.g., [A, B]) to a given prompt.")
-    note("User provides preferences (e.g., A < B or A > B).")
-    # Stub implementation: just an example
-    return [
-        PreferenceExample(
-            prompt="What is the best way to train a language model?",
-            response1="You should use a large dataset and train for a long time.",
-            response2="You should use a small dataset and train for a short time.",
-            preference="1 is better",
-        )
-    ]
 
 
 def course_components():
@@ -375,5 +225,154 @@ def course_components():
     note("Tomorrow, we might become data-bound...")
 
 
+def get_raw_data() -> List[Document]:
+    """Return raw data."""
+    note("Data does not just fall from the sky.")
+    note("Sources: webpages scraped from the Internet, books, arXiv papers, GitHub code, etc.")
+    note("Appeal to fair use to train on copyright data?"), see("https://arxiv.org/pdf/2303.15715.pdf")
+    note("Might have to license data (e.g., Google with Reddit data)"), see("https://www.reuters.com/technology/reddit-ai-content-licensing-deal-with-google-sources-say-2024-02-22/")
+    note("Formats: HTML, PDF, directories (not text!)")
+    # Stub implementation: grab one URL
+    urls = ["https://en.wikipedia.org/wiki/Sphinx"]
+    documents = [Document(url, open(cached(url)).read()) for url in urls]
+    return documents
+
+
+def process_data(documents: List[Document]) -> List[Document]:
+    note("Preprocess the raw data")
+    note("- Filtering: keep data of high quality, remove harmful content")
+    note("- Deduplication: don't waste time training, avoid memorization")
+    note("- Conversion: project HTML to text (preserve content, structure)")
+    # Stub implementation: just convert html to text
+    documents = list(preprocess(documents))
+    return documents
+
+
+def train_tokenizer(documents: Iterable[Document]) -> Tokenizer:
+    note("Tokenizers convert text into sequences of integers (tokens)")
+    note("Balance tradeoff between vocabulary size and compression ratio")
+    note("This course: Byte-Pair Encoding (BPE) tokenizer"), see(train_bpe)
+    # Stub implementation: just return the pre-trained tokenizer
+    import tiktoken
+    return tiktoken.get_encoding("gpt2")
+
+
+class TransformerLM(nn.Module):
+    def __init__(self):
+        note("Original Transformer"), see(transformer)
+        note("Many variants exist that improve on the original "
+             "(e.g., post-norm, SwiGLU, RMSNorm, parallel layers, RoPE, GQA)")
+
+    def forward(self, x):
+        pass
+
+
+def pretrain(model: TransformerLM, data: Iterable[Document], tokenizer: Tokenizer):
+    note("Specify the optimizer (e.g., AdamW)"), see(adamw)
+    note("Specify the learning rate schedule (e.g., cosine)")
+    note("Set other hyperparameters (batch size, number of heads, hidden dimension)")
+
+
+@dataclass(frozen=True)
+class InstructionExample:
+    prompt: str
+    response: str
+
+
+def get_instruction_data() -> List[InstructionExample]:
+    note("Instruction data: (prompt, response) pairs")
+    note("Intuition: base model already has the skills, "
+         "just need few examples to surface them."), see(lima)
+    # Stub implementation: just grab the Alpaca dataset
+    examples = list(islice(get_alpaca_dataset(), 0, 100))
+    return examples
+
+
+def instruction_tune(model: TransformerLM, data: Iterable[InstructionExample], tokenizer: Tokenizer):
+    note("Given (prompt, response) pairs, we perform supervised learning.")
+    note("Specifically, fine-tune `model` to maximize p(response | prompt).")
+
+
+@dataclass(frozen=True)
+class PreferenceExample:
+    prompt: str
+    response1: str
+    response2: str
+    preference: str
+
+
+def generate_preference_data(model: TransformerLM) -> List[PreferenceExample]:
+    note("Now we have a preliminary instruction following `model`.")
+    note("Data: generate multiple responses using `model` (e.g., [A, B]) to a given prompt.")
+    note("User provides preferences (e.g., A < B or A > B).")
+    # Stub implementation: just an example
+    return [
+        PreferenceExample(
+            prompt="What is the best way to train a language model?",
+            response1="You should use a large dataset and train for a long time.",
+            response2="You should use a small dataset and train for a short time.",
+            preference="1 is better",
+        )
+    ]
+
+
+def preference_tune(model: TransformerLM, data: Iterable[PreferenceExample], tokenizer: Tokenizer):
+    note("Given (prompt, response1, response2, preference) tuples, tune the model.")
+    note("Traditionally: "
+         "Proximal Policy Optimization (PPO) from reinforcement learning"), see(instruct_gpt)
+    note("Recently, effective and simpler approach: "
+         "Direct Policy Optimization (DPO)"), see(dpo)
+
+
 def assignment1_overview():
     note("https://github.com/stanford-cs336/spring2024-assignment1-basics")
+
+############################################################
+
+def query_model(model: str, prompt: str) -> str:
+    """Query `model` with the `prompt` and return the top-1 response."""
+    ensure_directory_exists("var")
+    cache = SqliteDict("var/query_model_cache.db")
+    key = model + ":" + prompt
+    if key in cache:
+        return cache[key]
+
+    from openai import OpenAI
+    if model.startswith("gpt-"):
+        # Use an actual OpenAI model
+        client = OpenAI(
+            api_key = os.getenv("OPENAI_API_KEY"),
+        )
+    else:
+        # Together API serves open models using the same OpenAI interface
+        client = OpenAI(
+            api_key=os.environ.get("TOGETHER_API_KEY"),
+            base_url="https://api.together.xyz/v1",
+        )
+
+    system_prompt = "You are a helpful and harmless assistant."
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+    )
+
+    value = response.choices[0].message.content
+    cache[key] = value
+    cache.commit()
+
+    return value
+
+
+def get_alpaca_dataset() -> Iterable[InstructionExample]:
+    from datasets import load_dataset
+    dataset = load_dataset("tatsu-lab/alpaca")
+    for datum in dataset["train"]:
+        prompt = datum["instruction"]
+        if datum["input"]:
+            prompt += "\n" + datum["input"]
+        response = datum["output"]
+        yield InstructionExample(prompt, response)

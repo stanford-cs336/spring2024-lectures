@@ -10,6 +10,11 @@ from dataclasses import dataclass
 from typing import Optional, List, Any, Union
 
 
+def ensure_directory_exists(path: str):
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+
 def download_file(url: str, filename: str):
     """Download `url` and save the contents to `filename`.  Skip if `filename` already exists."""
     if not os.path.exists(filename):
