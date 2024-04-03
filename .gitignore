@@ -1,0 +1,8 @@
+rc
+trash.py
+
+# Files generated during lecture
+content.js
+wandb
+data.npy
+model_checkpoint.pt
