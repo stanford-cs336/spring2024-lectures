@@ -939,7 +939,7 @@ def get_promised_flop_per_sec(device: str, dtype: torch.dtype) -> float:
         if dtype == torch.float32:
             return 67.5e12
         if dtype in (torch.bfloat16, torch.float16):
-            return 1979e12  # This is a bit optimistic...
+            return 1979e12 / 2  # 1979 is for sparse, dense is half of that
         raise ValueError(f"Unknown dtype: {dtype}")
 
     raise ValueError(f"Unknown device: {device}")
