@@ -60,6 +60,7 @@ def lecture_02():
     checkpointing()
     mixed_precision_training()
 
+
 def tensors_basics():
     see("https://pytorch.org/docs/stable/tensors.html")
 
@@ -82,7 +83,7 @@ def tensors_basics():
 
 
 def tensors_memory():
-    note("Almost everything (parameters, gradients, activations) "
+    note("Almost everything (parameters, gradients, activations, optimizer states) "
          "are stored as floating point numbers.")
 
     note("## float32"), see("https://en.wikipedia.org/wiki/Single-precision_floating-point_format")
@@ -105,10 +106,10 @@ def tensors_memory():
     note("...which is a lot!")
 
     note("## float16"), see("https://en.wikipedia.org/wiki/Half-precision_floating-point_format")
-    note("The float16 data type (also known as fp16 or half precision) allows us to cut down the memory.")
+    note("The float16 data type (also known as fp16 or half precision) cuts down the memory.")
     x = torch.zeros(16, 32, dtype=torch.float16)
     assert x.element_size() == 2
-    note("However, the dynamic range isn't great.")
+    note("However, the dynamic range (especially for small numbers) isn't great.")
     x = torch.tensor([1e-8], dtype=torch.float16)
     assert x == 0  # Underflow!
     note("If this happens when you train, you can get instability.")
@@ -381,17 +382,17 @@ def tensor_operations_flops():
     note("- We have n points")
     note("- Each point is d-dimsional")
     note("- The linear model maps each d-dimensional vector to a k outputs")
-    n = 16384
-    d = 32768
-    k = 8192
+    B = 16384
+    D = 32768
+    K = 8192
 
     device = get_device()
-    x = torch.ones(n, d, device=device)
-    w = torch.randn(d, k, device=device)
+    x = torch.ones(B, D, device=device)
+    w = torch.randn(D, K, device=device)
     y = x @ w
     note("We have one multiplication (x[i][j] * w[j][k]) and one addition per (i, j, k) triple.")
-    actual_num_flops = 2 * n * d * k
-    note("Therefore the FLOPs is: {num_flops}")
+    actual_num_flops = 2 * B * D * K
+    note(f"Therefore the FLOPs is: {actual_num_flops}")
 
     note("## FLOPs of other operations")
     note("- Elementwise operation on a m x n matrix requires O(m n) FLOPs.")
@@ -400,28 +401,28 @@ def tensor_operations_flops():
          "is as expensive as matrix multiplication for large enough matrices.")
 
     note("Interpretation:")
-    note("- n is the number of data points")
-    note("- (d k) is the number of parameters")
+    note("- B is the number of data points")
+    note("- (D K) is the number of parameters")
     note("- FLOPs for forward pass is 2 (# tokens) (# parameters)")
-    note("Turns out this generalizes to Transformers.")
+    note("It turns out this generalizes to Transformers.")
 
     note("How do our FLOPs calculations translate to wall-clock time (seconds)?")
     note("Let us time it!")
     actual_time = time_matmul(x, w)
-    actual_model_flop_per_sec = actual_num_flops / actual_time
-    note(f"Actual FLOPs/sec (float32): {actual_model_flop_per_sec}")
+    actual_flop_per_sec = actual_num_flops / actual_time
+    note(f"Actual FLOPs/sec (float32): {actual_flop_per_sec}")
 
     note("Each GPU has a specification sheet that reports the peak performance.")
     note("- A100"), see("https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/nvidia-a100-datasheet-us-nvidia-1758950-r4-web.pdf")
     note("- H100"), see("https://resources.nvidia.com/en-us-tensor-core/nvidia-tensor-core-gpu-datasheet")
     note("Note that the FLOP/s depends heavily on the data type!")
     promised_flop_per_sec = get_promised_flop_per_sec(device, x.dtype)
-    note(f"Promised FLOPs/sec (float32): {actual_model_flop_per_sec}")
+    note(f"Promised FLOPs/sec (float32): {promised_flop_per_sec}")
 
     note("## Model FLOPs utilization (MFU)")
 
     note("Definition: (actual FLOP/s) / (promised FLOP/s) [ignore communication/overhead]")
-    mfu = actual_model_flop_per_sec / promised_flop_per_sec
+    mfu = actual_flop_per_sec / promised_flop_per_sec
     note(f"MFU (float32): {mfu}")
     note("Usually, MFU of >= 0.5 is quite good (and will be higher if matmuls dominate)")
 
@@ -430,18 +431,20 @@ def tensor_operations_flops():
     w = w.to(torch.bfloat16)
     actual_time = time_matmul(x, w)
 
-    actual_model_flop_per_sec = actual_num_flops / actual_time
-    note(f"Actual FLOPs/sec (bfloat16): {actual_model_flop_per_sec}")
+    actual_flop_per_sec = actual_num_flops / actual_time
+    note(f"Actual FLOPs/sec (bfloat16): {actual_flop_per_sec}")
 
     promised_flop_per_sec = get_promised_flop_per_sec(device, x.dtype)
-    note(f"Promised FLOPs/sec (bfloat16): {actual_model_flop_per_sec}")
+    note(f"Promised FLOPs/sec (bfloat16): {actual_flop_per_sec}")
 
-    mfu = actual_model_flop_per_sec / promised_flop_per_sec
+    mfu = actual_flop_per_sec / promised_flop_per_sec
     note(f"MFU (bfloat16): {mfu}")
     note("Note: comparing bfloat16 to float32, the actual FLOP/s is higher.")
+    note("The MFU here is rather low, probably because the promised FLOPs is optimistic "
+         "(and seems to rely on sparsity, which we don't have).")
 
     note("Summary")
-    note("- Matrix multiplications dominate: 2mnp FLOPs")
+    note("- Matrix multiplications dominate: (2 m n p) FLOPs")
     note("- FLOP/s depends on "
          "hardware (H100 >> A100) and data type (bfloat16 >> float32")
     note("- Model FLOPs utilization (MFU): (actual FLOP/s) / (promised FLOP/s)")
@@ -539,30 +542,6 @@ def gradients_flops():
     note("- Total: 6 (# data points) (# parameters) FLOPs")
 
 
-def mixed_precision_training():
-    note("Choice of data type (float32, bfloat16, fp8) have tradeoffs.")
-    note("- Higher precision: more accurate/stable, more memory, more compute")
-    note("- Lower precision: less accurate/stable, less memory, less compute")
-
-    note("How can we get the best of both worlds?")
-
-    note("Solution: use float32 by default, but use {bfloat16, fp8} when possible.")
-
-    note("A concrete plan:")
-    note("- Use {bfloat16, fp8} for the forward pass (activations).")
-    note("- Use float32 for the rest (parameters, gradients).")
-
-    note("2017 paper on mixed precision training")
-    see("https://arxiv.org/pdf/1710.03740.pdf")
-
-    note("Pytorch has an automatic mixed precision (AMP) library.")
-    see("https://pytorch.org/docs/stable/amp.html")
-    see("https://docs.nvidia.com/deeplearning/performance/mixed-precision-training/")
-
-    note("NVIDIA's Transformer Engine supports FP8 for linear layers")
-    note("Paper that uses FP8 more pervasively throughout training"), see("https://arxiv.org/pdf/2310.18313.pdf")
-
-
 def module_parameters():
     input_dim = 16384
     hidden_dim = 32
@@ -610,7 +589,7 @@ def module_embeddings():
 
 
 def custom_model():
-    note("Let's build up a simple linear model using `nn.Parameter`.")
+    note("Let's build up a simple deep linear model using `nn.Parameter`.")
 
     D = 64  # Dimension
     num_layers = 2
@@ -828,7 +807,7 @@ def optimizer():
     total_memory = 4 * \
         (num_parameters + num_activations + num_gradients + num_optimizer_states)
 
-    note("## Compute for one step")
+    note("## Compute (for one step)")
     flops = 6 * B * num_parameters
 
     note("## Transformers")
@@ -854,6 +833,9 @@ def train_loop():
 
     note("Let's do a basic run")
     train("simple", get_batch, D=D, num_layers=0, B=4, num_train_steps=100, lr=0.01)
+
+    note("Do some hyperparameter tuning")
+    train("simple", get_batch, D=D, num_layers=0, B=4, num_train_steps=100, lr=0.1)
 
 
 def train(name: str, get_batch,
@@ -904,6 +886,30 @@ def checkpointing():
     loaded_checkpoint = torch.load("model_checkpoint.pt")
 
 
+def mixed_precision_training():
+    note("Choice of data type (float32, bfloat16, fp8) have tradeoffs.")
+    note("- Higher precision: more accurate/stable, more memory, more compute")
+    note("- Lower precision: less accurate/stable, less memory, less compute")
+
+    note("How can we get the best of both worlds?")
+
+    note("Solution: use float32 by default, but use {bfloat16, fp8} when possible.")
+
+    note("A concrete plan:")
+    note("- Use {bfloat16, fp8} for the forward pass (activations).")
+    note("- Use float32 for the rest (parameters, gradients).")
+
+    note("2017 paper on mixed precision training")
+    see("https://arxiv.org/pdf/1710.03740.pdf")
+
+    note("Pytorch has an automatic mixed precision (AMP) library.")
+    see("https://pytorch.org/docs/stable/amp.html")
+    see("https://docs.nvidia.com/deeplearning/performance/mixed-precision-training/")
+
+    note("NVIDIA's Transformer Engine supports FP8 for linear layers")
+    note("Paper that uses FP8 more pervasively throughout training"), see("https://arxiv.org/pdf/2310.18313.pdf")
+
+
 ############################################################
 
 def get_memory_usage(x: torch.Tensor):
@@ -935,7 +941,7 @@ def get_promised_flop_per_sec(device: str, dtype: torch.dtype) -> float:
         if dtype == torch.float32:
             return 67.5e12
         if dtype in (torch.bfloat16, torch.float16):
-            return 1979e12
+            return 1979e12  # This is a bit optimistic...
         raise ValueError(f"Unknown dtype: {dtype}")
 
     raise ValueError(f"Unknown device: {device}")
