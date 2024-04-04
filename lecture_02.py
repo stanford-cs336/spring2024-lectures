@@ -129,7 +129,7 @@ def tensors_memory():
     note(str(float32_info))
     note(str(float16_info))
     note(str(bfloat16_info))
-    
+
     note("In 2022, FP8 was standardized, motivated by machine learning workloads.")
     see("https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/examples/fp8_primer.html")
     note("100s support two variants of FP8: E4M3 (range [-448, 448]) and E5M2 ([-57344, 57344]).")
@@ -334,7 +334,7 @@ def tensor_operations():
     list_x = [x, x, x]
     roundtrip_list_x = torch.tensor_split(torch.cat(list_x, dim=1), 3, dim=1)
     assert all(torch.equal(a, b) for a, b in zip(list_x, roundtrip_list_x))
-    
+
     note("Squeezing and unsqueezing simply add or a remove a dimension.")
     x = torch.tensor([1, 2, 3])
 
@@ -498,7 +498,7 @@ def gradients_flops():
     note("- Multiply h1[i][j] * w2[j][k]")
     note("- Add to h2[i][k]")
     num_forward_flops = (2 * B * D * D) + (2 * B * D * K)
-    
+
     note("How many FLOPs is running the backward pass?")
     h1.retain_grad()  # For debugging
     h2.retain_grad()  # For debugging
@@ -780,7 +780,7 @@ def optimizer():
     pred_y = model(x)
     loss = F.mse_loss(input=pred_y, target=y)
     loss.backward()
-    
+
     note("Take a step")
     optimizer.step()
     see(model.state_dict())
