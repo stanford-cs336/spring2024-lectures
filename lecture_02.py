@@ -435,7 +435,7 @@ def tensor_operations_flops():
     note(f"Actual FLOPs/sec (bfloat16): {actual_flop_per_sec}")
 
     promised_flop_per_sec = get_promised_flop_per_sec(device, x.dtype)
-    note(f"Promised FLOPs/sec (bfloat16): {actual_flop_per_sec}")
+    note(f"Promised FLOPs/sec (bfloat16): {promised_flop_per_sec}")
 
     mfu = actual_flop_per_sec / promised_flop_per_sec
     note(f"MFU (bfloat16): {mfu}")
