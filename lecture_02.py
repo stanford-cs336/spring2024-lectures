@@ -841,7 +841,7 @@ def train_loop():
 def train(name: str, get_batch,
           D: int, num_layers: int,
           B: int, num_train_steps: int, lr: float):
-    wandb.init(project=f"lecture2-optimizer-{name}")
+    wandb.init(project=f"lecture2-train-{name}")
 
     model = Cruncher(dim=D, num_layers=0).to(get_device())
     optimizer = SGD(model.parameters(), lr=0.01)
@@ -850,19 +850,17 @@ def train(name: str, get_batch,
         # Get data
         x, y = get_batch(B=B)
 
-        # Forward (inference)
+        # Forward (compute loss)
         pred_y = model(x)
-
-        # Compute loss
         loss = F.mse_loss(pred_y, y)
         wandb.log({"loss": loss.item()})
 
-        # Backward (gradients)
+        # Backward (compute gradients)
         loss.backward()
 
         # Update parameters
         optimizer.step()
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
 
 
 def checkpointing():
