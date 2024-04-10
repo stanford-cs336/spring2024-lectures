@@ -6,6 +6,8 @@ import triton.language as tl
 def lecture():
     introduction_to_gpus()
 
+    mixed_precision()
+
     benchmarking()
     profiling()
 
@@ -33,6 +35,12 @@ def introduction_to_gpus():
     see("https://www.youtube.com/watch?v=ODeprwr3Jho")
     note("HetSys Course: Lecture 6: GPU performance considerations")
     see("https://www.youtube.com/watch?v=Xp0HHpcDwUc")
+
+
+def mixed_precision():
+    # TODO
+    pass
+
 
 def benchmarking():
     see("https://pytorch.org/tutorials/recipes/recipes/benchmark.html")
