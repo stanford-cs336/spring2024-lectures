@@ -1,3 +1,5 @@
+from util import *
+
 # This file just contains the references to the non-executable lectures.
 
 
