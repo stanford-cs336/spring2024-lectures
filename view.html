@@ -6,11 +6,10 @@
 </head>
 <body>
     <div id="content"></div>
-    <div id="new-content" style="display: none;"></div>
 
     <script>
-        // Number of things that we're waiting to load
-        let numWaiting = 0;
+        let numExistingElements = 0;  // Always growing
+        let numAddedElements = 0;  // Reset to 0 after each reload
 
         function reload() {
             // Remove old script element if it exists
@@ -24,40 +23,69 @@
             script.id = "script";
             script.type = "text/javascript";
             script.src = "content.js?" + new Date().getTime(); // Append timestamp to avoid caching
-            numWaiting += 1;
-            script.onload = onLoad;
             document.head.appendChild(script);
+            numAddedElements = 0;
         }
 
         // Functions that the script can call
-        function addText(stack, text) {
-            const newContent = document.getElementById("new-content");
+        function addText(stack, text, style) {
+            numAddedElements += 1;
+            if (numAddedElements < numExistingElements) {
+                return;
+            }
+            numExistingElements += 1;
 
+            const content = document.getElementById("content");
             const div = document.createElement("div");
-            div.appendChild(document.createTextNode(stack.join(" / ") + ": " + text));
-            newContent.appendChild(div);
+
+            const prefixSpan = document.createElement("span");
+            const prefix = stack.join(" / ") + ": ";
+            prefixSpan.appendChild(document.createTextNode(prefix));
+            prefixSpan.style.color = "gray";
+            div.appendChild(prefixSpan);
+
+            const textSpan = document.createElement("span");
+            setStyle(textSpan, style);
+            if (isUrl(text)) {
+                const link = document.createElement("a");
+                link.href = text;
+                link.target = "_blank";
+                link.appendChild(document.createTextNode(text));
+                textSpan.appendChild(link);
+            } else {
+                textSpan.appendChild(document.createTextNode(text));
+            }
+            div.appendChild(textSpan);
+
+            content.appendChild(div);
         }
 
-        function addImage(stack, path) {
-            const newContent = document.getElementById("new-content");
+        function addImage(stack, path, style) {
+            numAddedElements += 1;
+            if (numAddedElements < numExistingElements) {
+                return;
+            }
+            numExistingElements += 1;
+
+            const content = document.getElementById("content");
 
             const image = document.createElement("img");
             // Append a unique query string to the image src URL to bypass the cache
             image.src = path + "?" + new Date().getTime();
-            numWaiting += 1;
-            image.onload = onLoad;
-            newContent.appendChild(image);
+            setStyle(image, style);
+            content.appendChild(image);
         }
 
-        function onLoad() {
-            numWaiting -= 1;
-            if (numWaiting === 0) {
-                // Everything is done waiting, can copy the content to the visible element
-                const content = document.getElementById("content");
-                const newContent = document.getElementById("new-content");
-                content.innerHTML = newContent.innerHTML;
-                newContent.innerHTML = "";
+        function setStyle(elem, style) {
+            if (style) {
+                for (const key in style) {
+                    elem.style[key] = style[key];
+                }
             }
+        }
+
+        function isUrl(text) {
+            return text.startsWith("http://") || text.startsWith("https://");
         }
 
         setInterval(reload, 1000);

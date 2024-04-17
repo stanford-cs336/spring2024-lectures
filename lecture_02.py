@@ -914,14 +914,6 @@ def get_memory_usage(x: torch.Tensor):
     return x.numel() * x.element_size()
 
 
-def get_device():
-    """Try to use the GPU if possible, otherwise, use CPU."""
-    if torch.cuda.is_available():
-        return torch.device("cuda:0")
-    else:
-        return torch.device("cpu")
-
-
 def get_promised_flop_per_sec(device: str, dtype: torch.dtype) -> float:
     """Return the peak FLOP/s for `device` operating on `dtype`."""
     properties = torch.cuda.get_device_properties(device)

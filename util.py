@@ -8,6 +8,15 @@ import requests
 from io import BytesIO
 from dataclasses import dataclass
 from typing import Optional, List, Any, Union
+import torch
+
+
+def get_device():
+    """Try to use the GPU if possible, otherwise, use CPU."""
+    if torch.cuda.is_available():
+        return torch.device("cuda:0")
+    else:
+        return torch.device("cpu")
 
 
 def ensure_directory_exists(path: str):
@@ -46,25 +55,56 @@ def get_stack():
     stack = stack[:-2]  # Remove the current two functions (get_stack and point/figure/etc.)
     return stack
 
-def note(message: str):
+
+def note(message: str, style: Optional[dict] = None, verbatim: bool = False):
     """Make a note (bullet point) with `message`."""
     print("note:", message)
-    stack = json.dumps(get_stack())
-    arg = json.dumps(message)
-    add_content([f"addText({stack}, {arg});"])
+
+    style = style or {}
+    if verbatim:
+        messages = message.split("\n")
+        style = {
+            "font-family": "monospace",
+            "white-space": "pre",
+            **style
+        }
+    else:
+        messages = [message]
+
+    for message in messages:
+        stack = json.dumps(get_stack())
+        arg = json.dumps(message)
+        style_str = json.dumps(style)
+        add_content([f"addText({stack}, {arg}, {style_str});"])
 
 
 def see(obj: Any):
     """References `obj` in the code, but don't print anything out."""
     print("see:", obj)
 
+    if isinstance(obj, str):
+        message = obj
+    else:
+        message = str(obj)
+    style = {"color": "gray"}
 
-def image(path: str):
+    stack = json.dumps(get_stack())
+    arg = json.dumps(message)
+    style_str = json.dumps(style)
+    add_content([f"addText({stack}, {arg}, {style_str});"])
+
+
+def image(path: str, style: Optional[dict] = None, width: float = 1.0):
     """Show the image at `path`."""
     print("image:", path)
+
+    style = style or {}
+    style["width"] = str(width * 100) + "%"
+
     stack = json.dumps(get_stack())
     arg = json.dumps(path)
-    add_content([f"addImage({stack}, {arg});"])
+    style_str = json.dumps(style)
+    add_content([f"addImage({stack}, {arg}, {style_str});"])
 
 
 has_added_content = False

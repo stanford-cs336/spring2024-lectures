@@ -1,7 +1,7 @@
 from lecture_01 import lecture_01
 from lecture_02 import lecture_02
 from lecture_06 import lecture_06
-from lecture_08 import lecture_08
+#from lecture_08 import lecture_08
 from non_executable import *
 
 #lecture_01()  # overview, tokenization [4/1, Percy]

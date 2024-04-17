@@ -8,3 +8,4 @@ content.js
 wandb
 data.npy
 model_checkpoint.pt
+FlameGraph
