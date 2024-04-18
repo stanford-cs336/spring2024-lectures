@@ -25,6 +25,7 @@ def lecture_06():
     review_of_gpus()
     benchmarking_and_profiling()  # Important for understanding!
 
+    kernel_fusion_motivation()
     cuda_kernels()  # Write kernels in CUDA/C++
     triton_kernels()  # Write kernels in Python
     pytorch_compilation()  # Don't write kernels at all?
@@ -368,7 +369,7 @@ def cuda_kernels():
 
 
 def create_cuda_gelu():
-    note("CUDA is an extension of C/C++ with APIs for managing APIs.")
+    note("CUDA is an extension of C/C++ with APIs for managing GPUs.")
 
     note("Simplified picture: write f(i), CUDA kernel computes f(i) for all i.")
 

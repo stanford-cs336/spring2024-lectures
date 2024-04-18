@@ -6,7 +6,7 @@ __global__ void gelu_kernel(float* in, float* out, int num_elements) {
     // Get the index into the tensor
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (i < num_elements) {  // To handle the case when n < numBlock * blockDim
+    if (i < num_elements) {  // To handle the case when n < numBlocks * blockDim
         // Do the actual computation
         out[i] = 0.5 * in[i] * (1.0 + tanh(0.79788456 * (in[i] + 0.044715 * in[i] * in[i] * in[i])));
     }
