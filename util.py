@@ -85,13 +85,11 @@ def note(message: str, style: Optional[dict] = None, verbatim: bool = False, pop
         messages = [message]
 
     for message in messages:
-        stack = json.dumps(get_stack(pop_stack=pop_stack))
-        arg = json.dumps(message)
-        style_str = json.dumps(style)
-        add_content([f"addText({stack}, {arg}, {style_str});"])
+        stack = get_stack(pop_stack=pop_stack)
+        add_content(stack, "addText", [stack, message, style])
 
 
-def see(obj: Any):
+def see(obj: Any, pop_stack: bool = False):
     """References `obj` in the code, but don't print anything out."""
     print("see:", obj)
 
@@ -101,10 +99,8 @@ def see(obj: Any):
         message = str(obj)
     style = {"color": "gray"}
 
-    stack = json.dumps(get_stack())
-    arg = json.dumps(message)
-    style_str = json.dumps(style)
-    add_content([f"addText({stack}, {arg}, {style_str});"])
+    stack = get_stack(pop_stack=pop_stack)
+    add_content(stack, "addText", [stack, message, style])
 
 
 def image(path: str, style: Optional[dict] = None, width: float = 1.0, pop_stack: bool = False):
@@ -114,26 +110,27 @@ def image(path: str, style: Optional[dict] = None, width: float = 1.0, pop_stack
     style = style or {}
     style["width"] = str(width * 100) + "%"
 
-    stack = json.dumps(get_stack(pop_stack=pop_stack))
-    arg = json.dumps(path)
-    style_str = json.dumps(style)
-    add_content([f"addImage({stack}, {arg}, {style_str});"])
+    stack = get_stack(pop_stack=pop_stack)
+    add_content(stack, "addImage", [stack, path, style])
 
 
 has_added_content = False
 
-def add_content(lines: List[str]):
+def add_content(stack, function_name, args: List[Any]):
     """
     Add content that would be displayed by `view.html`.
     The first time we call this function, we clear the content.
     `lines`: list of Javascript lines.
     """
+    path = stack[0]["name"] + "-content.js"
+    line = function_name + "(" + ", ".join(map(json.dumps, args)) + ")"
+
     global has_added_content
     mode = "w" if not has_added_content else "a"
     has_added_content = True
-    with open("content.js", mode) as f:
-        for line in lines:
-            print(line, file=f)
+
+    with open(path, mode) as f:
+        print(line, file=f)
 
 ############################################################
 

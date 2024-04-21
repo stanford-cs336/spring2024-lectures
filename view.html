@@ -17,6 +17,27 @@
         let numAddedElements = 0;  // Reset to 0 after each reload
         let prevStackDescription = null;  // Previous stack description, print if changed
 
+        function parseUrlParams() {
+            const urlParams = {};
+            const data = window.location.hash.slice(1);
+            if (data) {
+                const items = data.split("&");
+                for (let item of items) {
+                    const [key, value] = item.split("=");
+                    urlParams[key] = value;
+                }
+            }
+            return urlParams;
+        }
+
+        function serializeUrlParams(urlParams) {
+            const items = [];
+            for (let key in urlParams) {
+                items.push(key + "=" + encodeURIComponent(urlParams[key]));
+            }
+            window.location.hash = "#" + items.join("&");
+        }
+
         function reload() {
             // Remove old script element if it exists
             const oldScript = document.getElementById("script");
@@ -24,11 +45,19 @@
                 document.head.removeChild(oldScript);
             }
 
+            // Figure out what content to load
+            const urlParams = parseUrlParams();
+            if (!urlParams.load) {
+                urlParams.load = prompt("Enter file to load (e.g., lecture_06-content.js)");
+                console.log(urlParams);
+                serializeUrlParams(urlParams);
+            }
+
             // Create a new script element
             const script = document.createElement("script");
             script.id = "script";
             script.type = "text/javascript";
-            script.src = withTimestamp("content.js");
+            script.src = withTimestamp(urlParams.load);
             document.head.appendChild(script);
             numAddedElements = 0;
         }
@@ -51,6 +80,7 @@
             const verticalRectangle = "&#9646;"
             const prefix = verticalRectangle + " ";
             prefixSpan.href = getStackFrameUrl(stack[stack.length - 1]);
+            prefixSpan.target = "_blank";
             prefixSpan.style.color = "gray";
             prefixSpan.innerHTML = prefix;
             div.appendChild(prefixSpan);
@@ -139,7 +169,7 @@
         }
 
         reload();
-        setInterval(reload, 1000);
+        //setInterval(reload, 1000);
     </script>
 </body>
 </html>

@@ -970,3 +970,7 @@ def triton_matmul(a, b, activation=""):
         ACTIVATION=activation  #
     )
     return c
+
+
+if __name__ == "__main__":
+    lecture_06()
