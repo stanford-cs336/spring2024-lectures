@@ -71,7 +71,7 @@ def review_of_gpus():
     print_gpu_specs()
 
     note("Basic structure: run f(i) for all i = 0, ..., N-1")
-    
+
     note("## Execution model")
     image("https://docs.nvidia.com/cuda/parallel-thread-execution/_images/grid-with-CTAs.png", width=0.5)
     note("- *Thread*: process individual index (i.e., f(i))")
@@ -82,16 +82,16 @@ def review_of_gpus():
     note("- Intuition: group f(i)'s that read similar data together")
     note("- Threads within a thread block have shared memory (as fast as L1 cache) [A100: 164KB]")
     note("- Can synchronize threads (for reading/writing) within a block (but not across blocks)")
- 
-    note("Hardware and execution interact.")
+
+    note("### Hardware and execution interact.")
     image("https://developer-blogs.nvidia.com/wp-content/uploads/2019/06/pasted-image-0.png", width=0.25)
     note("Thread blocks scheduled onto SMs in waves.")
     note("Problem: last wave has fewer thread blocks, leaving some SMs idle (low occupancy).")
     note("Wave quantization: make number of thread blocks divide # SMs.")
     note("Rule of thumb: number of thread blocks should be >= 4x # SMs")
     note("Challenge: some aspects of hardware are hidden from the execution model (e.g., scheduling, # SMs).")
-    
-    note("Arithmetic intensity: # FLOPs / # bytes")
+
+    note("### Arithmetic intensity: # FLOPs / # bytes")
     note("- If high, operation is compute-bound (good)")
     note("- If low, operation is memory-bound (bad)")
     note("General rule: "
@@ -174,6 +174,7 @@ def benchmarking():
     note("Let's define a convenient function for benchmarking an arbitrary function.")
     benchmark("sleep", lambda : time.sleep(50 / 1000))
 
+    note("### Benchmarking matrix multiplication")
     note("First, let us benchmark matrix multiplication of square matrices.")
     for dim in (1024, 2048, 4096, 8192, 16384):
         benchmark(f"matmul(dim={dim})", run_operation2(dim=dim, operation=lambda a, b: a @ b))
@@ -204,7 +205,7 @@ def benchmarking():
         benchmark(f"run_mlp({scale}x dim)", run_mlp(dim=scale * dim, num_layers=num_layers, batch_size=batch_size, num_steps=num_steps))
 
     note("The timings are not always predictable due to the non-homogenous nature of CUDA kernels, hardware, etc.")
-    
+
     note("You can also use `torch.utils.benchmark`, which provides more amenities."), see("https://pytorch.org/tutorials/recipes/recipes/benchmark.html")
     note("We did not use this to make benchmarking more transparent.")
 
@@ -229,7 +230,7 @@ def benchmark(description: str, run: Callable, num_warmups: int = 1, num_trials:
         times.append((end_time - start_time) * 1000)
 
     mean_time = mean(times)
-    note(f"{description}: {list(map(round1, sorted(times)))} (mean {round1(mean_time)} ms)")
+    note(f"{description}: {list(map(round1, sorted(times)))} (mean {round1(mean_time)} ms)", pop_stack=True)
 
 
 def profiling():
@@ -260,7 +261,7 @@ def profiling():
     profile("cdist", run_operation2(dim=2048, operation=lambda a, b: torch.cdist(a, b)))
     profile("gelu", run_operation2(dim=2048, operation=lambda a, b: torch.nn.functional.gelu(a + b)))
     profile("softmax", run_operation2(dim=2048, operation=lambda a, b: torch.nn.functional.softmax(a + b)))
-    
+
     note("Now let's profile our MLP.")
     note("We will also visualize our stack trace using a flame graph, which reveals where time is being spent.")
     profile("mlp", run_mlp(dim=2048, num_layers=64, batch_size=1024, num_steps=2), with_stack=True)
@@ -283,11 +284,11 @@ def profile(description: str, run: Callable, num_warmups: int = 1, with_stack: b
         torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
 
     # Print out table
-    table = prof.key_averages().table(sort_by="cuda_time_total", 
+    table = prof.key_averages().table(sort_by="cuda_time_total",
                                       max_name_column_width=80,
                                       row_limit=10)
-    note(f"## {description}")
-    note(table, verbatim=True)
+    note(f"## {description}", pop_stack=True)
+    note(table, verbatim=True, pop_stack=True)
 
     # Write stack trace visualization
     if with_stack:
@@ -295,7 +296,7 @@ def profile(description: str, run: Callable, num_warmups: int = 1, with_stack: b
         svg_path = f"var/stacks_{description}.svg"
         prof.export_stacks(text_path, "self_cuda_time_total")
         create_flame_graph(text_path, svg_path)
-        image(svg_path, width=1)
+        image(svg_path, width=1, pop_stack=True)
 
 
 def create_flame_graph(in_path: str, out_path: str):
@@ -335,7 +336,7 @@ def kernel_fusion_motivation():
 
     # Check more systematically
     check_equal(pytorch_gelu, manual_gelu)
-    
+
     note("Let's benchmark.")
     benchmark("manual_gelu", run_operation1(dim=16384, operation=manual_gelu))
     benchmark("pytorch_gelu", run_operation1(dim=16384, operation=pytorch_gelu))
@@ -355,7 +356,7 @@ def cuda_kernels():
 
     note("Check correctness of our implementation.")
     check_equal(cuda_gelu, manual_gelu)
-    
+
     note("Benchmark our CUDA version.")
     benchmark("pytorch_gelu", run_operation1(dim=16384, operation=pytorch_gelu))
     benchmark("manual_gelu", run_operation1(dim=16384, operation=manual_gelu))
@@ -688,10 +689,10 @@ def triton_matmul_main():
     note("It's much easier in Triton.")
     see("https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html")
 
-    note("       k                  j                     ")
-    note("  [ A1 A2 A3 ]       [ B1 B2 B3 ]   [ C1 C2 C3 ]")
-    note("i [ A4 A5 A6 ]  *  k [ B4 B5 B6 ] = [ C4 C5 C6 ]")
-    note("  [ A7 A8 A9 ]       [ B7 B8 B9 ]   [ C7 C8 C9 ]")
+    note("       k                  j                     ", verbatim=True)
+    note("  [ A1 A2 A3 ]       [ B1 B2 B3 ]   [ C1 C2 C3 ]", verbatim=True)
+    note("i [ A4 A5 A6 ]  *  k [ B4 B5 B6 ] = [ C4 C5 C6 ]", verbatim=True)
+    note("  [ A7 A8 A9 ]       [ B7 B8 B9 ]   [ C7 C8 C9 ]", verbatim=True)
 
     note("Naively: need MKN reads, MN writes")
 
@@ -708,10 +709,10 @@ def triton_matmul_main():
 
     note("Trivial: for small matrices, load all of A and B into shared memory, then could compute C.")
     note("Now we get MK + KN reads, MN writes")
-    
+
     note("But what if we have big matrices...")
 
-    image("https://www.researchgate.net/profile/Axel-Huebl/publication/320499173/figure/fig1/AS:614298980196359@1523471698396/Performance-critical-A-B-part-of-the-GEMM-using-a-tiling-strategy-A-thread-iterates.png")
+    image("https://www.researchgate.net/profile/Axel-Huebl/publication/320499173/figure/fig1/AS:614298980196359@1523471698396/Performance-critical-A-B-part-of-the-GEMM-using-a-tiling-strategy-A-thread-iterates.png", width=0.5)
     note("Key idea: divide the matrix into blocks.")
     note("For each block of A and block of B:")
     note("- load into shared memory,")
@@ -721,9 +722,9 @@ def triton_matmul_main():
     note("Animation of tiled matrix multiplication"), see("https://youtu.be/aMvCEEBIBto")
 
     note("## Leveraging L2 cache")
-    
+
     note("Two ways of computing 9 elements of a matrix:")
-    image("https://triton-lang.org/main/_images/grouped_vs_row_major_ordering.png")
+    image("https://triton-lang.org/main/_images/grouped_vs_row_major_ordering.png", width=0.5)
     note("1. Loads 9 + 81 = 90 blocks")
     note("1. Loads 27 + 27 = 54 blocks")
 
@@ -772,7 +773,7 @@ def further_reading():
     see("https://towardsdatascience.com/how-pytorch-2-0-accelerates-deep-learning-with-operator-fusion-and-cpu-gpu-code-generation-35132a85bd26")
 
 ############################################################
-    
+
 def print_gpu_specs():
     num_devices = torch.cuda.device_count()
     note(f"{num_devices} devices")
@@ -780,7 +781,7 @@ def print_gpu_specs():
         properties = torch.cuda.get_device_properties(i)
         note(f"{i}: {properties}")
 
-    
+
 def round1(x: float) -> float:
     """Round to 1 decimal place."""
     return round(x, 1)
@@ -818,7 +819,8 @@ def check_equal2(f1, f2):
 
 
 def get_local_url(path: str) -> str:
-    return f"http://localhost:8001/{path}"
+    #return f"http://localhost:8000/{path}"
+    return "https://github.com/stanford-cs336/spring2024-lectures/blob/main/" + path;
 
 
 # Copied from https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html

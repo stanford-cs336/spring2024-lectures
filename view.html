@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <title>View</title>
+    <style>
+        a { text-decoration: none; }
+    </style>
 </head>
 <body>
     <div id="content"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <script>
         let numExistingElements = 0;  // Always growing
         let numAddedElements = 0;  // Reset to 0 after each reload
+        let prevStackDescription = null;  // Previous stack description, print if changed
 
         function reload() {
             // Remove old script element if it exists
@@ -22,58 +28,93 @@
             const script = document.createElement("script");
             script.id = "script";
             script.type = "text/javascript";
-            script.src = "content.js?" + new Date().getTime(); // Append timestamp to avoid caching
+            script.src = withTimestamp("content.js");
             document.head.appendChild(script);
             numAddedElements = 0;
         }
 
-        // Functions that the script can call
-        function addText(stack, text, style) {
-            numAddedElements += 1;
-            if (numAddedElements < numExistingElements) {
-                return;
-            }
-            numExistingElements += 1;
-
+        function addContent(stack, element) {
             const content = document.getElementById("content");
             const div = document.createElement("div");
 
-            const prefixSpan = document.createElement("span");
-            const prefix = stack.join(" / ") + ": ";
-            prefixSpan.appendChild(document.createTextNode(prefix));
+            // Show stack only if it has changed
+            const stackDescription = stack.map((frame) => frame.name).join(" / ");
+            if (stackDescription !== prevStackDescription) {
+                const stackDiv = document.createElement("h4");
+                stackDiv.appendChild(document.createTextNode(stackDescription));
+                div.appendChild(stackDiv);
+                prevStackDescription = stackDescription;
+            }
+
+            // Prefix provides link to the GitHub
+            const prefixSpan = document.createElement("a");
+            const verticalRectangle = "&#9646;"
+            const prefix = verticalRectangle + " ";
+            prefixSpan.href = getStackFrameUrl(stack[stack.length - 1]);
             prefixSpan.style.color = "gray";
+            prefixSpan.innerHTML = prefix;
             div.appendChild(prefixSpan);
+        
+            // Add the actual element
+            div.appendChild(element);
+            content.appendChild(div);
+
+            window.scrollTo(0, document.body.scrollHeight);
+        }
+
+        // Functions that the script can call
+        function addText(stack, text, style) {
+            if (!shouldAddElement()) {
+                return;
+            }
 
             const textSpan = document.createElement("span");
             setStyle(textSpan, style);
+
             if (isUrl(text)) {
+                // If the text is a URL, make it a link
                 const link = document.createElement("a");
                 link.href = text;
                 link.target = "_blank";
                 link.appendChild(document.createTextNode(text));
                 textSpan.appendChild(link);
             } else {
-                textSpan.appendChild(document.createTextNode(text));
+                if (style["font-family"] === "monospace") {
+                    // Verbatim
+                    textSpan.appendChild(document.createTextNode(text));
+                } else {
+                    // Interpret as markdown
+                    let html = marked.parse(text)
+                    html = html.replace("<p>", "").replace("</p>", "");
+                    html = html.replace("<ul>", "").replace("</ul>", "");
+                    html = html.replace("<li>", "&bull; ").replace("</li>", "");
+                    textSpan.innerHTML = html;
+                }
             }
-            div.appendChild(textSpan);
 
-            content.appendChild(div);
+            addContent(stack, textSpan);
         }
 
         function addImage(stack, path, style) {
-            numAddedElements += 1;
-            if (numAddedElements < numExistingElements) {
+            if (!shouldAddElement()) {
                 return;
             }
-            numExistingElements += 1;
 
-            const content = document.getElementById("content");
-
+            // Create the image
             const image = document.createElement("img");
-            // Append a unique query string to the image src URL to bypass the cache
-            image.src = path + "?" + new Date().getTime();
+            image.src = withTimestamp(path);
             setStyle(image, style);
-            content.appendChild(image);
+
+            addContent(stack, image);
+        }
+
+        function shouldAddElement() {
+            numAddedElements += 1;
+            if (numAddedElements <= numExistingElements) {
+                return false;
+            }
+            numExistingElements += 1;
+            return true;
         }
 
         function setStyle(elem, style) {
@@ -84,10 +125,20 @@
             }
         }
 
+        function withTimestamp(path) {
+            // Append a unique query string to the image src URL to bypass the cache
+            return path + "?" + new Date().getTime();
+        }
+
         function isUrl(text) {
             return text.startsWith("http://") || text.startsWith("https://");
         }
 
+        function getStackFrameUrl(frame) {
+            return "https://github.com/stanford-cs336/spring2024-lectures/blob/main/" + frame.filename + "#L" + frame.lineno;
+        }
+
+        reload();
         setInterval(reload, 1000);
     </script>
 </body>

@@ -43,20 +43,33 @@ def cached(url: str) -> str:
     return path
 
 
-def get_stack():
-    """Return the current stack as a string."""
+def get_stack(pop_stack: bool = False):
+    """
+    Return the current stack as a string.
+    if `pop_stack`, then remove the last function.
+    """
     stack = traceback.extract_stack()
-    stack = [frame.name for frame in stack]  # Take only names
+    # Start at <module>
     i = None
-    for j, name in enumerate(stack):
-        if name == "<module>":
+    for j, frame in enumerate(stack):
+        if frame.name == "<module>":
             i = j
     stack = stack[i + 1:]  # Delete everything up to the last module
     stack = stack[:-2]  # Remove the current two functions (get_stack and point/figure/etc.)
+    if pop_stack:
+        stack = stack[:-1]
+    stack = [
+        {
+            "name": frame.name,
+            "filename": os.path.basename(frame.filename),
+            "lineno": frame.lineno,
+        } \
+        for frame in stack
+    ]
     return stack
 
 
-def note(message: str, style: Optional[dict] = None, verbatim: bool = False):
+def note(message: str, style: Optional[dict] = None, verbatim: bool = False, pop_stack: bool = False):
     """Make a note (bullet point) with `message`."""
     print("note:", message)
 
@@ -72,7 +85,7 @@ def note(message: str, style: Optional[dict] = None, verbatim: bool = False):
         messages = [message]
 
     for message in messages:
-        stack = json.dumps(get_stack())
+        stack = json.dumps(get_stack(pop_stack=pop_stack))
         arg = json.dumps(message)
         style_str = json.dumps(style)
         add_content([f"addText({stack}, {arg}, {style_str});"])
@@ -94,14 +107,14 @@ def see(obj: Any):
     add_content([f"addText({stack}, {arg}, {style_str});"])
 
 
-def image(path: str, style: Optional[dict] = None, width: float = 1.0):
+def image(path: str, style: Optional[dict] = None, width: float = 1.0, pop_stack: bool = False):
     """Show the image at `path`."""
     print("image:", path)
 
     style = style or {}
     style["width"] = str(width * 100) + "%"
 
-    stack = json.dumps(get_stack())
+    stack = json.dumps(get_stack(pop_stack=pop_stack))
     arg = json.dumps(path)
     style_str = json.dumps(style)
     add_content([f"addImage({stack}, {arg}, {style_str});"])
