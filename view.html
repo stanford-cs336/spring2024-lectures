@@ -3,14 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <title>View</title>
+    <style>
+        a { text-decoration: none; }
+    </style>
 </head>
 <body>
     <div id="content"></div>
-    <div id="new-content" style="display: none;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
     <script>
-        // Number of things that we're waiting to load
-        let numWaiting = 0;
+        let numExistingElements = 0;  // Always growing
+        let numAddedElements = 0;  // Reset to 0 after each reload
+        let prevStackDescription = null;  // Previous stack description, print if changed
+
+        function parseUrlParams() {
+            const urlParams = {};
+            const data = window.location.hash.slice(1);
+            if (data) {
+                const items = data.split("&");
+                for (let item of items) {
+                    const [key, value] = item.split("=");
+                    urlParams[key] = value;
+                }
+            }
+            return urlParams;
+        }
+
+        function serializeUrlParams(urlParams) {
+            const items = [];
+            for (let key in urlParams) {
+                items.push(key + "=" + encodeURIComponent(urlParams[key]));
+            }
+            window.location.hash = "#" + items.join("&");
+        }
 
         function reload() {
             // Remove old script element if it exists
@@ -19,47 +45,130 @@
                 document.head.removeChild(oldScript);
             }
 
+            // Figure out what content to load
+            const urlParams = parseUrlParams();
+            if (!urlParams.load) {
+                urlParams.load = prompt("Enter file to load (e.g., lecture_06-content.js)");
+                console.log(urlParams);
+                serializeUrlParams(urlParams);
+            }
+
             // Create a new script element
             const script = document.createElement("script");
             script.id = "script";
             script.type = "text/javascript";
-            script.src = "content.js?" + new Date().getTime(); // Append timestamp to avoid caching
-            numWaiting += 1;
-            script.onload = onLoad;
+            script.src = withTimestamp(urlParams.load);
             document.head.appendChild(script);
+            numAddedElements = 0;
+        }
+
+        function addContent(stack, element) {
+            const content = document.getElementById("content");
+            const div = document.createElement("div");
+
+            // Show stack only if it has changed
+            const stackDescription = stack.map((frame) => frame.name).join(" / ");
+            if (stackDescription !== prevStackDescription) {
+                const stackDiv = document.createElement("h4");
+                stackDiv.appendChild(document.createTextNode(stackDescription));
+                div.appendChild(stackDiv);
+                prevStackDescription = stackDescription;
+            }
+
+            // Prefix provides link to the GitHub
+            const prefixSpan = document.createElement("a");
+            const verticalRectangle = "&#9646;"
+            const prefix = verticalRectangle + " ";
+            prefixSpan.href = getStackFrameUrl(stack[stack.length - 1]);
+            prefixSpan.target = "_blank";
+            prefixSpan.style.color = "gray";
+            prefixSpan.innerHTML = prefix;
+            div.appendChild(prefixSpan);
+        
+            // Add the actual element
+            div.appendChild(element);
+            content.appendChild(div);
+
+            window.scrollTo(0, document.body.scrollHeight);
         }
 
         // Functions that the script can call
-        function addText(stack, text) {
-            const newContent = document.getElementById("new-content");
+        function addText(stack, text, style) {
+            if (!shouldAddElement()) {
+                return;
+            }
 
-            const div = document.createElement("div");
-            div.appendChild(document.createTextNode(stack.join(" / ") + ": " + text));
-            newContent.appendChild(div);
+            const textSpan = document.createElement("span");
+            setStyle(textSpan, style);
+
+            if (isUrl(text)) {
+                // If the text is a URL, make it a link
+                const link = document.createElement("a");
+                link.href = text;
+                link.target = "_blank";
+                link.appendChild(document.createTextNode(text));
+                textSpan.appendChild(link);
+            } else {
+                if (style["font-family"] === "monospace") {
+                    // Verbatim
+                    textSpan.appendChild(document.createTextNode(text));
+                } else {
+                    // Interpret as markdown
+                    let html = marked.parse(text)
+                    html = html.replace("<p>", "").replace("</p>", "");
+                    html = html.replace("<ul>", "").replace("</ul>", "");
+                    html = html.replace("<li>", "&bull; ").replace("</li>", "");
+                    textSpan.innerHTML = html;
+                }
+            }
+
+            addContent(stack, textSpan);
         }
 
-        function addImage(stack, path) {
-            const newContent = document.getElementById("new-content");
+        function addImage(stack, path, style) {
+            if (!shouldAddElement()) {
+                return;
+            }
 
+            // Create the image
             const image = document.createElement("img");
-            // Append a unique query string to the image src URL to bypass the cache
-            image.src = path + "?" + new Date().getTime();
-            numWaiting += 1;
-            image.onload = onLoad;
-            newContent.appendChild(image);
+            image.src = withTimestamp(path);
+            setStyle(image, style);
+
+            addContent(stack, image);
         }
 
-        function onLoad() {
-            numWaiting -= 1;
-            if (numWaiting === 0) {
-                // Everything is done waiting, can copy the content to the visible element
-                const content = document.getElementById("content");
-                const newContent = document.getElementById("new-content");
-                content.innerHTML = newContent.innerHTML;
-                newContent.innerHTML = "";
+        function shouldAddElement() {
+            numAddedElements += 1;
+            if (numAddedElements <= numExistingElements) {
+                return false;
+            }
+            numExistingElements += 1;
+            return true;
+        }
+
+        function setStyle(elem, style) {
+            if (style) {
+                for (const key in style) {
+                    elem.style[key] = style[key];
+                }
             }
         }
 
+        function withTimestamp(path) {
+            // Append a unique query string to the image src URL to bypass the cache
+            return path + "?" + new Date().getTime();
+        }
+
+        function isUrl(text) {
+            return text.startsWith("http://") || text.startsWith("https://");
+        }
+
+        function getStackFrameUrl(frame) {
+            return "https://github.com/stanford-cs336/spring2024-lectures/blob/main/" + frame.filename + "#L" + frame.lineno;
+        }
+
+        reload();
         setInterval(reload, 1000);
     </script>
 </body>

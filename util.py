@@ -8,6 +8,15 @@ import requests
 from io import BytesIO
 from dataclasses import dataclass
 from typing import Optional, List, Any, Union
+import torch
+
+
+def get_device():
+    """Try to use the GPU if possible, otherwise, use CPU."""
+    if torch.cuda.is_available():
+        return torch.device("cuda:0")
+    else:
+        return torch.device("cpu")
 
 
 def ensure_directory_exists(path: str):
@@ -34,53 +43,94 @@ def cached(url: str) -> str:
     return path
 
 
-def get_stack():
-    """Return the current stack as a string."""
+def get_stack(pop_stack: bool = False):
+    """
+    Return the current stack as a string.
+    if `pop_stack`, then remove the last function.
+    """
     stack = traceback.extract_stack()
-    stack = [frame.name for frame in stack]  # Take only names
+    # Start at <module>
     i = None
-    for j, name in enumerate(stack):
-        if name == "<module>":
+    for j, frame in enumerate(stack):
+        if frame.name == "<module>":
             i = j
     stack = stack[i + 1:]  # Delete everything up to the last module
     stack = stack[:-2]  # Remove the current two functions (get_stack and point/figure/etc.)
+    if pop_stack:
+        stack = stack[:-1]
+    stack = [
+        {
+            "name": frame.name,
+            "filename": os.path.basename(frame.filename),
+            "lineno": frame.lineno,
+        } \
+        for frame in stack
+    ]
     return stack
 
-def note(message: str):
+
+def note(message: str, style: Optional[dict] = None, verbatim: bool = False, pop_stack: bool = False):
     """Make a note (bullet point) with `message`."""
     print("note:", message)
-    stack = json.dumps(get_stack())
-    arg = json.dumps(message)
-    add_content([f"addText({stack}, {arg});"])
+
+    style = style or {}
+    if verbatim:
+        messages = message.split("\n")
+        style = {
+            "font-family": "monospace",
+            "white-space": "pre",
+            **style
+        }
+    else:
+        messages = [message]
+
+    for message in messages:
+        stack = get_stack(pop_stack=pop_stack)
+        add_content(stack, "addText", [stack, message, style])
 
 
-def see(obj: Any):
+def see(obj: Any, pop_stack: bool = False):
     """References `obj` in the code, but don't print anything out."""
     print("see:", obj)
 
+    if isinstance(obj, str):
+        message = obj
+    else:
+        message = str(obj)
+    style = {"color": "gray"}
 
-def image(path: str):
+    stack = get_stack(pop_stack=pop_stack)
+    add_content(stack, "addText", [stack, message, style])
+
+
+def image(path: str, style: Optional[dict] = None, width: float = 1.0, pop_stack: bool = False):
     """Show the image at `path`."""
     print("image:", path)
-    stack = json.dumps(get_stack())
-    arg = json.dumps(path)
-    add_content([f"addImage({stack}, {arg});"])
+
+    style = style or {}
+    style["width"] = str(width * 100) + "%"
+
+    stack = get_stack(pop_stack=pop_stack)
+    add_content(stack, "addImage", [stack, path, style])
 
 
 has_added_content = False
 
-def add_content(lines: List[str]):
+def add_content(stack, function_name, args: List[Any]):
     """
     Add content that would be displayed by `view.html`.
     The first time we call this function, we clear the content.
     `lines`: list of Javascript lines.
     """
+    path = stack[0]["name"] + "-content.js"
+    line = function_name + "(" + ", ".join(map(json.dumps, args)) + ")"
+
     global has_added_content
     mode = "w" if not has_added_content else "a"
     has_added_content = True
-    with open("content.js", mode) as f:
-        for line in lines:
-            print(line, file=f)
+
+    with open(path, mode) as f:
+        print(line, file=f)
 
 ############################################################
 

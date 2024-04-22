@@ -147,7 +147,7 @@ def tensors_on_gpus():
 
     note("However, in order to take advantage of the massive parallelism of GPUs, "
          "we need to move them to GPU memory.")
-    image("https://www.researchgate.net/publication/338984158/figure/fig2/AS:854027243900928@1580627370716/Communication-between-host-CPU-and-GPU.png")
+    image("https://www.researchgate.net/publication/338984158/figure/fig2/AS:854027243900928@1580627370716/Communication-between-host-CPU-and-GPU.png", width=0.5)
 
     note("Let's first see if we have any GPUs.")
     if not torch.cuda.is_available():
@@ -182,7 +182,7 @@ def tensor_operations():
 
     note("Pytorch tensors are really pointers into allocated memory "
          "with metadata describing how to get to any element of the tensor.")
-    image("https://martinlwx.github.io/img/2D_tensor_strides.png")
+    image("https://martinlwx.github.io/img/2D_tensor_strides.png", width=0.5)
     see("https://pytorch.org/docs/stable/generated/torch.Tensor.stride.html")
     x = torch.tensor([
         [1., 2, 3],
@@ -790,25 +790,27 @@ def optimizer():
 
     note("## Memory")
 
-    note("Parameters")
+    # Parameters
     num_parameters = (D * D * num_layers) + D
     assert num_parameters == get_num_parameters(model)
 
-    note("Activations")
+    # Activations
     num_activations = B * D * num_layers
 
-    note("Gradients")
+    # Gradients
     num_gradients = num_parameters
 
-    note("Optimizer states")
+    # Optimizer states
     num_optimizer_states = num_parameters
 
-    note("Putting it all together, assuming float32:")
+    # Putting it all together, assuming float32
     total_memory = 4 * \
         (num_parameters + num_activations + num_gradients + num_optimizer_states)
+    note(total_memory)
 
     note("## Compute (for one step)")
     flops = 6 * B * num_parameters
+    note(flops)
 
     note("## Transformers")
 
@@ -914,14 +916,6 @@ def get_memory_usage(x: torch.Tensor):
     return x.numel() * x.element_size()
 
 
-def get_device():
-    """Try to use the GPU if possible, otherwise, use CPU."""
-    if torch.cuda.is_available():
-        return torch.device("cuda:0")
-    else:
-        return torch.device("cpu")
-
-
 def get_promised_flop_per_sec(device: str, dtype: torch.dtype) -> float:
     """Return the peak FLOP/s for `device` operating on `dtype`."""
     properties = torch.cuda.get_device_properties(device)
@@ -971,3 +965,6 @@ def time_matmul(a: torch.Tensor, b: torch.Tensor) -> float:
 
 def get_num_parameters(model: nn.Module) -> int:
     return sum(param.numel() for param in model.parameters())
+
+if __name__ == "__main__":
+    lecture_02()

@@ -133,14 +133,16 @@ def examples():
         prompt="Explain how you build a language model from scratch to a five-year old.",
     )
     see(gpt_4)
-    see(f"GPT-4: {response}")
+    note("### GPT-4 response")
+    note(response, verbatim=True)
 
     response = query_model(
         model="mistralai/Mixtral-8x7B-Instruct-v0.1",
         prompt="Explain how you build a language model from scratch to a five-year old.",
     )
     see(mixtral)
-    see(f"Mixtral: {response}")
+    see("### Mixtral response")
+    note(response, verbatim=True)
 
     note("They can mostly follow instructions, generate fluent and semantically relevant text.")
     note("How do they work?  How can we build one ourselves?")
@@ -376,3 +378,7 @@ def get_alpaca_dataset() -> Iterable[InstructionExample]:
             prompt += "\n" + datum["input"]
         response = datum["output"]
         yield InstructionExample(prompt, response)
+
+
+if __name__ == "__main__":
+    lecture_01()
