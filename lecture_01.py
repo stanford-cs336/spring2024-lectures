@@ -381,4 +381,5 @@ def get_alpaca_dataset() -> Iterable[InstructionExample]:
 
 
 if __name__ == "__main__":
+    init_content("lecture_01-content.js")
     lecture_01()

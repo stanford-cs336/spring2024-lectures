@@ -782,15 +782,6 @@ def print_gpu_specs():
         note(f"{i}: {properties}")
 
 
-def round1(x: float) -> float:
-    """Round to 1 decimal place."""
-    return round(x, 1)
-
-
-def mean(x: List[float]) -> float:
-    return sum(x) / len(x)
-
-
 def pytorch_softmax(x: torch.Tensor):
     return torch.nn.functional.softmax(x, dim=-1)
 
@@ -973,4 +964,5 @@ def triton_matmul(a, b, activation=""):
 
 
 if __name__ == "__main__":
+    init_content("lecture_06-content.js")
     lecture_06()

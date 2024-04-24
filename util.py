@@ -11,6 +11,15 @@ from typing import Optional, List, Any, Union
 import torch
 
 
+def round1(x: float) -> float:
+    """Round to 1 decimal place."""
+    return round(x, 1)
+
+
+def mean(x: List[float]) -> float:
+    return sum(x) / len(x)
+
+
 def get_device():
     """Try to use the GPU if possible, otherwise, use CPU."""
     if torch.cuda.is_available():
@@ -54,8 +63,9 @@ def get_stack(pop_stack: bool = False):
     for j, frame in enumerate(stack):
         if frame.name == "<module>":
             i = j
-    stack = stack[i + 1:]  # Delete everything up to the last module
-    stack = stack[:-2]  # Remove the current two functions (get_stack and point/figure/etc.)
+    if i is not None:
+        stack = stack[i + 1:]  # Delete everything up to the last module
+        stack = stack[:-2]  # Remove the current two functions (get_stack and point/figure/etc.)
     if pop_stack:
         stack = stack[:-1]
     stack = [
@@ -86,7 +96,7 @@ def note(message: str, style: Optional[dict] = None, verbatim: bool = False, pop
 
     for message in messages:
         stack = get_stack(pop_stack=pop_stack)
-        add_content(stack, "addText", [stack, message, style])
+        add_content("addText", [stack, message, style])
 
 
 def see(obj: Any, pop_stack: bool = False):
@@ -100,7 +110,7 @@ def see(obj: Any, pop_stack: bool = False):
     style = {"color": "gray"}
 
     stack = get_stack(pop_stack=pop_stack)
-    add_content(stack, "addText", [stack, message, style])
+    add_content("addText", [stack, message, style])
 
 
 def image(path: str, style: Optional[dict] = None, width: float = 1.0, pop_stack: bool = False):
@@ -111,25 +121,24 @@ def image(path: str, style: Optional[dict] = None, width: float = 1.0, pop_stack
     style["width"] = str(width * 100) + "%"
 
     stack = get_stack(pop_stack=pop_stack)
-    add_content(stack, "addImage", [stack, path, style])
+    add_content("addImage", [stack, path, style])
 
 
-has_added_content = False
+# Where the contents of the lecture are written to be displayed via `view.html`.
+content_path: Optional[str] = None
 
-def add_content(stack, function_name, args: List[Any]):
-    """
-    Add content that would be displayed by `view.html`.
-    The first time we call this function, we clear the content.
-    `lines`: list of Javascript lines.
-    """
-    path = stack[0]["name"] + "-content.js"
+def init_content(path: str):
+    global content_path
+    content_path = path
+    # Clear the file
+    with open(content_path, "w") as f:
+        pass
+
+def add_content(function_name, args: List[Any]):
+    assert content_path
     line = function_name + "(" + ", ".join(map(json.dumps, args)) + ")"
-
-    global has_added_content
-    mode = "w" if not has_added_content else "a"
-    has_added_content = True
-
-    with open(path, mode) as f:
+    # Append to the file
+    with open(content_path, "a") as f:
         print(line, file=f)
 
 ############################################################

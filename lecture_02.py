@@ -967,4 +967,5 @@ def get_num_parameters(model: nn.Module) -> int:
     return sum(param.numel() for param in model.parameters())
 
 if __name__ == "__main__":
+    init_content("lecture_02-content.js")
     lecture_02()
