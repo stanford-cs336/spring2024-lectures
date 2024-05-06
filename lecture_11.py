@@ -87,8 +87,8 @@ def bert():
     note("BERT [Devlin+ 2019]"), see("https://arxiv.org/pdf/1810.04805")
 
     note("Data consists of:")
-    note("- BooksCorpus (800M words)"), books_corpus()
-    note("- Wikipedia (2.5B words): remove lists, tables, headers"), wikipedia()
+    books_corpus()
+    wikipedia()
 
     note("Important: sequences are documents rather than sentences")
     note("Contrast: 1 billion word benchmark [Chelba+ 2013] (sentences from machine translation)")
