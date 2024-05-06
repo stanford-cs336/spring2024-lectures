@@ -14,16 +14,6 @@ from tqdm import tqdm
 from markdownify import markdownify
 import requests
 
-def data_unit():
-    # TODO
-    common_crawl()
-
-
-def common_crawl():
-    note("Common Crawl is...")
-    # TODO
-    see("https://commoncrawl.org/latest-crawl")
-
 
 @dataclass(frozen=True)
 class Document:
@@ -32,9 +22,9 @@ class Document:
     content: str
 
 
-def get_common_crawl_urls() -> List[str]:
+def get_common_crawl_urls(snapshot: str = "CC-MAIN-2024-18") -> List[str]:
     """Return the list of all the WARC files in the latest crawl."""
-    download_file("https://data.commoncrawl.org/crawl-data/CC-MAIN-2024-10/warc.paths.gz", "var/warc.paths.gz")
+    download_file(f"https://data.commoncrawl.org/crawl-data/{snapshot}/warc.paths.gz", "var/warc.paths.gz")
     with GzipFile("var/warc.paths.gz") as f:
         urls = ["https://data.commoncrawl.org/" + line.decode("utf-8").rstrip() for line in f]
     return urls
@@ -62,16 +52,14 @@ def read_common_crawl(url: str, limit: int) -> Iterable[Document]:
 
 
 def preprocess(documents: Iterable[Document]) -> Iterable[Document]:
-    # Use readability to clean up HTML and extract the content
     for document in documents:
         markdown = markdownify(document.content)
-        #result = readabilipy.simple_json_from_html_string(document.content, use_readability=True)
-        #html = str(result["content"])
-
-        ## Convert to markdown
-        #h = html2text.HTML2Text()
-        #h.ignore_links = False
-        #h.body_width = 0
-        #markdown = h.handle(html)
-
         yield Document(url=document.url, content=markdown)
+
+
+def write_documents(documents: Iterable[Document], path: str):
+    with open(path, "w") as out:
+        for i, document in enumerate(documents):
+            print(f"--- PAGE {i}: url = {document.url}", file=out)
+            print(document.content, file=out)
+            print("", file=out)
