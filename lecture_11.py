@@ -183,8 +183,8 @@ def ccnet():
 def t5_c4():
     note("Collosal Clean Crawled corpus (C4) [Raffel+ 2019 (Google)]"), see("https://arxiv.org/pdf/1910.10683v4")
 
-    note("Paper is more famous for Text-to-text Transformer Transformer (T5), "
-         "which pushes the idea of putting all NLP tasks into one format, doing ")
+    note("Paper is more famous for Text-to-text Transfer Transformer (T5), "
+         "which pushes the idea of putting all NLP tasks into one format")
     image("https://production-media.paperswithcode.com/methods/new_text_to_text.jpg")
     note("But a major contribution was the dataset (C4)")
 
