@@ -14,5 +14,6 @@ tiktoken
 # Data
 warcio
 markdownify
-#readabilipy
-#html2text
+kenlm
+fasttext
+data_selection
