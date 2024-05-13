@@ -20,6 +20,11 @@ def mean(x: List[float]) -> float:
     return sum(x) / len(x)
 
 
+def count(list, x):
+    """Return the number of times `x` appears in `list`."""
+    return sum(1 for y in list if y == x)
+
+
 def get_device():
     """Try to use the GPU if possible, otherwise, use CPU."""
     if torch.cuda.is_available():

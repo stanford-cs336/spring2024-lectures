@@ -248,11 +248,6 @@ def filtering_summary():
     note("2. Resample examples x with probability proportional to score(x)")
 
 
-def count(list, x):
-    """Return the number of times `x` appears in `list`."""
-    return sum(1 for y in list if y == x)
-
-
 def product(list):
     """Return the product of all elements in `list`."""
     return np.prod(list)

@@ -17,3 +17,5 @@ markdownify
 kenlm
 fasttext
 data_selection
+bitarray
+mmh3
