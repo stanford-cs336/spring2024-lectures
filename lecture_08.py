@@ -17,13 +17,16 @@ def lecture_08():
 
     note("Situation: compute (arithmetic logic units) is spread out, communication is slow")
 
+    if not torch.cuda.is_available():
+        note("Please use a GPU to get the full experience.")
+
     note("Hierarchy")
     note("- L1 cache / shared memory (small, fast)")
     note("- L2 cache")
     note("- DRAM")
     note("- Single node, multi-GPU")
     note("- Multi-node, multi-GPU (big, slow)")
-    
+
     note("Last week: reduce DRAM accesses via fusion/tiling")
     note("This week: reduce communication across GPUs/nodes via replication/sharding")
 
@@ -97,8 +100,9 @@ def hardware():
 
     note("Let's check what our hardware setup is."), see("https://guide.ncloud-docs.com/docs/en/server-baremetal-a100-check-vpc")
 
-    note_system(["nvidia-smi", "topo", "-m"])
-    note("Note GPUs are connected via NV18, also connected to NICs (for PCIe)")
+    if torch.cuda.is_available():
+        note_system(["nvidia-smi", "topo", "-m"])
+        note("Note GPUs are connected via NV18, also connected to NICs (for PCIe)")
 
 
 def collective_operations():
@@ -135,7 +139,7 @@ def collective_operations():
 
 def torch_distributed():
     note("## PyTorch distributed library (`torch.distributed`)")
-    
+
     note("Reference"), see("https://pytorch.org/docs/stable/distributed.html")
 
     note("- Provides clean interface for collective operations"), see(dist.all_reduce)
@@ -156,6 +160,8 @@ def torch_distributed():
     spawn(collective_operations_main, world_size=4)
 
 
+
+
 def collective_operations_main(rank: int, world_size: int, content_path: str):
     """Try out some collective operations."""
     # Note: this function is running asynchronously for each process (world_size)
@@ -167,19 +173,19 @@ def collective_operations_main(rank: int, world_size: int, content_path: str):
         note("### All-reduce")
     dist.barrier()  # Waits for all processes to get to this point
 
-    tensor = torch.tensor([0., 1, 2, 3], device=f"cuda:{rank}") + rank  # Both input and output
+    tensor = torch.tensor([0., 1, 2, 3], device=get_device(rank)) + rank  # Both input and output
 
     note(f"Rank {rank} [before all-reduce]: {tensor}", verbatim=True)
     dist.all_reduce(tensor=tensor, op=dist.ReduceOp.SUM, async_op=False)  # Modifies tensor in place
     note(f"Rank {rank} [after all-reduce]: {tensor}", verbatim=True)
-    
+
     # Reduce-scatter
     if rank == 0:
         note("### Reduce-scatter")
     dist.barrier()
 
-    input = torch.arange(world_size, dtype=torch.float32, device=f"cuda:{rank}") + rank  # Input
-    output = torch.empty(1, device=f"cuda:{rank}")  # Allocate output
+    input = torch.arange(world_size, dtype=torch.float32, device=get_device(rank)) + rank  # Input
+    output = torch.empty(1, device=get_device(rank))  # Allocate output
 
     note(f"Rank {rank} [before reduce-scatter]: input = {input}, output = {output}", verbatim=True)
     dist.reduce_scatter_tensor(output=output, input=input, op=dist.ReduceOp.SUM, async_op=False)
@@ -191,7 +197,7 @@ def collective_operations_main(rank: int, world_size: int, content_path: str):
     dist.barrier()
 
     input = output  # Input is the output of reduce-scatter
-    output = torch.empty(world_size, device=f"cuda:{rank}")  # Allocate output
+    output = torch.empty(world_size, device=get_device(rank))  # Allocate output
 
     note(f"Rank {rank} [before all-gather]: input = {input}, output = {output}", verbatim=True)
     dist.all_gather_into_tensor(output_tensor=output, input_tensor=input, async_op=False)
@@ -199,24 +205,27 @@ def collective_operations_main(rank: int, world_size: int, content_path: str):
 
     if rank == 0:
         note("Recall that all-reduce = reduce-scatter + all-gather!")
-    
+
     cleanup()
 
 
 def benchmarking():
+    if not torch.cuda.is_available():
+        return
+
     note("## Benchmarking"), see("https://github.com/stas00/ml-engineering/blob/master/network/benchmarks/all_reduce_bench.py")
 
     note("Let's see how fast commmunication happens (will restrict to just one node).")
 
     note("### All-reduce")
 
-    spawn(all_reduce, world_size=2, num_elements=1024**3)
-    spawn(all_reduce, world_size=4, num_elements=1024**3)
+    spawn(all_reduce, world_size=2, num_elements=1024**2)
+    spawn(all_reduce, world_size=4, num_elements=1024**2)
 
     note("### Reduce-scatter")
 
-    spawn(reduce_scatter, world_size=2, num_elements=1024**3)
-    spawn(reduce_scatter, world_size=4, num_elements=1024**3)
+    spawn(reduce_scatter, world_size=2, num_elements=1024**2)
+    spawn(reduce_scatter, world_size=4, num_elements=1024**2)
 
     note("Reference on reasoning about operations:"), see("https://github.com/NVIDIA/nccl-tests/blob/master/doc/PERFORMANCE.md#allreduce")
 
@@ -225,18 +234,20 @@ def all_reduce(rank: int, world_size: int, content_path: str, num_elements: int)
     setup(rank, world_size, content_path)
 
     # Create tensor
-    tensor = torch.randn(num_elements, device=f"cuda:{rank}")
+    tensor = torch.randn(num_elements, device=get_device(rank))
 
     # Warmup
     dist.all_reduce(tensor=tensor, op=dist.ReduceOp.SUM, async_op=False)
-    torch.cuda.synchronize()  # Wait for CUDA kerels to finish
-    dist.barrier()            # Wait for all the processes to get here
-    
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()  # Wait for CUDA kerels to finish
+        dist.barrier()            # Wait for all the processes to get here
+
     # All reduce
     start_time = time.time()
     dist.all_reduce(tensor=tensor, op=dist.ReduceOp.SUM, async_op=False)
-    torch.cuda.synchronize()  # Wait for CUDA kerels to finish
-    dist.barrier()            # Wait for all the processes to get here
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()  # Wait for CUDA kerels to finish
+        dist.barrier()            # Wait for all the processes to get here
     end_time = time.time()
 
     duration = end_time - start_time
@@ -256,19 +267,21 @@ def reduce_scatter(rank: int, world_size: int, content_path: str, num_elements: 
     setup(rank, world_size, content_path)
 
     # Create tensor
-    input = torch.randn(world_size, num_elements, device=f"cuda:{rank}")
-    output = torch.empty(num_elements, device=f"cuda:{rank}")
+    input = torch.randn(world_size, num_elements, device=get_device(rank))
+    output = torch.empty(num_elements, device=get_device(rank))
 
     # Warmup
     dist.reduce_scatter_tensor(output=output, input=input, op=dist.ReduceOp.SUM, async_op=False)
-    torch.cuda.synchronize()  # Wait for CUDA kerels to finish
-    dist.barrier()            # Wait for all the processes to get here
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()  # Wait for CUDA kerels to finish
+        dist.barrier()            # Wait for all the processes to get here
 
     # All reduce
     start_time = time.time()
     dist.reduce_scatter_tensor(output=output, input=input, op=dist.ReduceOp.SUM, async_op=False)
-    torch.cuda.synchronize()  # Wait for CUDA kerels to finish
-    dist.barrier()            # Wait for all the processes to get here
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()  # Wait for CUDA kerels to finish
+        dist.barrier()            # Wait for all the processes to get here
     end_time = time.time()
 
     duration = end_time - start_time
@@ -292,6 +305,9 @@ def cuda_streams():
 
     note("CUDA stream: a sequence of operations that execute in order")
     note("Different streams can execute concurrently")
+
+    if not torch.cuda.is_available():
+        return
 
     # Create streams
     stream1 = torch.cuda.Stream()
@@ -354,7 +370,7 @@ def ddp_main(rank: int, world_size: int, content_path: str, data: torch.Tensor, 
     num_dim = data.size(1)
     start_index = rank * batch_size
     end_index = start_index + batch_size
-    data = data[start_index:end_index].to(f"cuda:{rank}")
+    data = data[start_index:end_index].to(get_device(rank))
 
     # Create MLP: # gelu(gelu(x @ params[0]) @ params[1]) ...
     params = [get_init_params(num_dim, num_dim, rank) for i in range(num_layers)]
@@ -372,8 +388,9 @@ def ddp_main(rank: int, world_size: int, content_path: str, data: torch.Tensor, 
         loss.backward()
 
         # Sync gradients across workers (NEW!)
-        for param in params:
-            dist.all_reduce(tensor=param.grad, op=dist.ReduceOp.AVG, async_op=False)
+        if torch.cuda.is_available():
+            for param in params:
+                dist.all_reduce(tensor=param.grad, op=dist.ReduceOp.AVG, async_op=False)
 
         # Update parameters
         optimizer.step()
@@ -386,7 +403,7 @@ def ddp_main(rank: int, world_size: int, content_path: str, data: torch.Tensor, 
 
 def get_init_params(num_inputs: int, num_outputs: int, rank: int) -> nn.Parameter:
     torch.random.manual_seed(0)  # For reproducibility
-    return nn.Parameter(torch.randn(num_inputs, num_outputs, device=f"cuda:{rank}") / math.sqrt(num_outputs))
+    return nn.Parameter(torch.randn(num_inputs, num_outputs, device=get_device(rank)) / math.sqrt(num_outputs))
 
 
 def ddp_zero3():
@@ -413,7 +430,7 @@ def ddp_zero3_main(rank: int, world_size: int, content_path: str, data: torch.Te
     num_dim = data.size(1)
     start_index = rank * batch_size
     end_index = start_index + batch_size
-    data = data[start_index:end_index].to(f"cuda:{rank}")
+    data = data[start_index:end_index].to(get_device(rank))
 
     # Each rank handles a subset of layers:
     #       rank 0      |       rank 1      | ...
@@ -454,7 +471,7 @@ def ddp_zero3_main(rank: int, world_size: int, content_path: str, data: torch.Te
 
             # Broadcast (in general, all-reduce) layer i params to all processes
             if rank != i_rank:  # Layer i does not belong to `rank`, allocate
-                params[i] = nn.Parameter(torch.empty(num_dim, num_dim, device=f"cuda:{rank}"))
+                params[i] = nn.Parameter(torch.empty(num_dim, num_dim, device=get_device(rank)))
             dist.broadcast(tensor=params[i], src=i_rank)
 
             # Compute activations[i]
@@ -474,7 +491,7 @@ def ddp_zero3_main(rank: int, world_size: int, content_path: str, data: torch.Te
 
             # Broadcast (in general, all-reduce) layer i params to all processes
             if rank != i_rank:  # Layer i belongs to `rank`
-                params[i] = nn.Parameter(torch.empty(num_dim, num_dim, device=f"cuda:{rank}"))
+                params[i] = nn.Parameter(torch.empty(num_dim, num_dim, device=get_device(rank)))
             dist.broadcast(tensor=params[i], src=i_rank)
 
             # This is janky...
@@ -503,7 +520,8 @@ def ddp_zero3_main(rank: int, world_size: int, content_path: str, data: torch.Te
 
             # Average gradients, send to the `i_rank` responsible for it
             # Broadcast layer to all processes
-            dist.reduce(tensor=params[i].grad, dst=i_rank, op=dist.ReduceOp.AVG)
+            if torch.cuda.is_available():
+                dist.reduce(tensor=params[i].grad, dst=i_rank, op=dist.ReduceOp.AVG)
 
             if rank == i_rank:  # Layer i belongs to `rank`
                 optimizers[i].step()
@@ -522,7 +540,7 @@ def tensor_parallelism():
 
     note("Key idea: split the big matmul across ranks")
     note("Each rank will have the same data")
-    
+
     # Create data
     batch_size = 128
     num_dim = 1024
@@ -535,7 +553,7 @@ def tensor_parallelism_main(rank: int, world_size: int, content_path: str, data:
     setup(rank, world_size, content_path)
 
     # Note: no sharding of the data
-    data = data.to(f"cuda:{rank}")
+    data = data.to(get_device(rank))
     batch_size = data.size(0)
     num_dim = data.size(1)
     sharded_num_dim = num_dim // world_size  # Shard `num_dim`
@@ -551,7 +569,7 @@ def tensor_parallelism_main(rank: int, world_size: int, content_path: str, data:
         x = F.gelu(x)
 
         # Allocate memory for activations (world_size x batch_size x sharded_num_dim)
-        activations = [torch.empty(batch_size, sharded_num_dim, device=f"cuda:{rank}") for _ in range(world_size)]
+        activations = [torch.empty(batch_size, sharded_num_dim, device=get_device(rank)) for _ in range(world_size)]
 
         # Send via all gather
         dist.all_gather(tensor_list=activations, tensor=x, async_op=False)
@@ -585,7 +603,7 @@ def pipeline_parallelism_main(rank: int, world_size: int, content_path: str, dat
     setup(rank, world_size, content_path)
 
     # All the data
-    data = data.to(f"cuda:{rank}")
+    data = data.to(get_device(rank))
     batch_size = data.size(0)
     num_dim = data.size(1)
 
@@ -603,7 +621,7 @@ def pipeline_parallelism_main(rank: int, world_size: int, content_path: str, dat
     if rank == 0:
         micro_batches = data.chunk(chunks=num_micro_batches, dim=0)
     else:
-        micro_batches = [torch.empty(micro_batch_size, num_dim, device=f"cuda:{rank}") for _ in range(num_micro_batches)]
+        micro_batches = [torch.empty(micro_batch_size, num_dim, device=get_device(rank)) for _ in range(num_micro_batches)]
 
     for x in micro_batches:
         # Get from previous rank
@@ -658,7 +676,10 @@ def setup(rank: int, world_size: int, content_path: str):
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "15623"
 
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    if torch.cuda.is_available():
+        dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    else:
+        dist.init_process_group("gloo", rank=rank, world_size=world_size)
 
     # For executable lecture, so we can write to the content file using `note`
     util.content_path = content_path

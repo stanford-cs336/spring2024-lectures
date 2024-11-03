@@ -1,21 +1,20 @@
 # Basic
-requests
-tqdm
-sqlitedict
-torch
-wandb
+requests~=2.32.3
+tqdm~=4.66.6
+sqlitedict~=2.1.0
+numpy<2.0.0  # 2.0.0 breaks fastText
+torch~=2.5.1
+wandb~=0.18.5
 
 # Existing libraries
-#transformers
-datasets
-openai
-tiktoken
+datasets~=3.1.0
+openai~=1.53.0
+tiktoken~=0.8.0
 
 # Data
-warcio
-markdownify
-kenlm
-fasttext
-data_selection
-bitarray
-mmh3
+warcio~=1.7.4
+markdownify~=0.13.1
+kenlm~=0.2.0
+fasttext~=0.9.3
+bitarray~=3.0.0
+mmh3~=5.0.1

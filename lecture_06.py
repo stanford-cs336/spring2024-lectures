@@ -22,6 +22,9 @@ def lecture_06():
     note("Last lecture: high-level overview of GPUs and performance"), see(lecture_05)
     note("This lecture: benchmarking/profiling + write kernels")
 
+    if not torch.cuda.is_available():
+        note("You should run this lecture on a GPU to get the full experience.")
+
     review_of_gpus()
     benchmarking_and_profiling()  # Important for understanding!
 
@@ -176,7 +179,11 @@ def benchmarking():
 
     note("### Benchmarking matrix multiplication")
     note("First, let us benchmark matrix multiplication of square matrices.")
-    for dim in (1024, 2048, 4096, 8192, 16384):
+    if torch.cuda.is_available():
+        dims = (1024, 2048, 4096, 8192, 16384)
+    else:
+        dims = (1024, 2048)
+    for dim in dims:
         benchmark(f"matmul(dim={dim})", run_operation2(dim=dim, operation=lambda a, b: a @ b))
     note("Times scale cubicly with dimension.")
 
@@ -216,7 +223,8 @@ def benchmark(description: str, run: Callable, num_warmups: int = 1, num_trials:
     # Since we will run the kernel multiple times, the timing that matters is steady state.
     for _ in range(num_warmups):
         run()
-    torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
 
     # Time it for real now!
     times: List[float] = []
@@ -224,7 +232,8 @@ def benchmark(description: str, run: Callable, num_warmups: int = 1, num_trials:
         start_time = time.time()
 
         run()  # Actually perform computation
-        torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
 
         end_time = time.time()
         times.append((end_time - start_time) * 1000)
@@ -264,14 +273,18 @@ def profiling():
 
     note("Now let's profile our MLP.")
     note("We will also visualize our stack trace using a flame graph, which reveals where time is being spent.")
-    profile("mlp", run_mlp(dim=2048, num_layers=64, batch_size=1024, num_steps=2), with_stack=True)
+    if torch.cuda.is_available():
+        profile("mlp", run_mlp(dim=2048, num_layers=64, batch_size=1024, num_steps=2), with_stack=True)
+    else:
+        profile("mlp", run_mlp(dim=128, num_layers=16, batch_size=128, num_steps=2), with_stack=True)
 
 
 def profile(description: str, run: Callable, num_warmups: int = 1, with_stack: bool = False):
     # Warmup
     for _ in range(num_warmups):
         run()
-    torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
 
     # Run the code with the profiler
     with torch.profiler.profile(
@@ -281,7 +294,8 @@ def profile(description: str, run: Callable, num_warmups: int = 1, with_stack: b
             # Needed to export stack trace for visualization
             experimental_config=torch._C._profiler._ExperimentalConfig(verbose=True)) as prof:
         run()
-        torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()  # Wait for CUDA threads to finish (important!)
 
     # Print out table
     table = prof.key_averages().table(sort_by="cuda_time_total",
@@ -355,13 +369,15 @@ def cuda_kernels():
     cuda_gelu = create_cuda_gelu()
 
     note("Check correctness of our implementation.")
-    check_equal(cuda_gelu, manual_gelu)
+    if cuda_gelu is not None:
+        check_equal(cuda_gelu, manual_gelu)
 
     note("Benchmark our CUDA version.")
     benchmark("pytorch_gelu", run_operation1(dim=16384, operation=pytorch_gelu))
     benchmark("manual_gelu", run_operation1(dim=16384, operation=manual_gelu))
-    benchmark("cuda_gelu", run_operation1(dim=16384, operation=cuda_gelu))
-    profile("cuda_gelu", run_operation1(dim=16384, operation=cuda_gelu))
+    if cuda_gelu is not None:
+        benchmark("cuda_gelu", run_operation1(dim=16384, operation=cuda_gelu))
+        profile("cuda_gelu", run_operation1(dim=16384, operation=cuda_gelu))
     note("Our CUDA implementation is faster than manual, but not as good as PyTorch.")
 
     note("Elementwise operations are easy in CUDA (though you can still be smarter).")
@@ -395,6 +411,8 @@ def create_cuda_gelu():
 
     note("Compile the CUDA code and bind it to a Python module.")
     ensure_directory_exists("var/cuda_gelu")
+    if not torch.cuda.is_available():
+        return None
     module = load_inline(
         cuda_sources=[cuda_gelu_src],
         cpp_sources=[cpp_gelu_src],
@@ -433,6 +451,9 @@ def triton_introduction():
 
 
 def triton_gelu_main():
+    if not torch.cuda.is_available():
+        return
+
     note("One big advantage of Triton is that you can step through the Python code.")
 
     note("Let's step through a Triton kernel.")
@@ -555,6 +576,9 @@ def pytorch_compilation():
     note("Check correctness of our implementation.")
     check_equal(compiled_gelu, manual_gelu)
 
+    if not torch.cuda.is_available():
+        return
+
     note("Let's benchmark and profile it!")
     benchmark("manual_gelu", run_operation1(dim=16384, operation=manual_gelu))
     benchmark("pytorch_gelu", run_operation1(dim=16384, operation=pytorch_gelu))
@@ -583,6 +607,9 @@ def triton_softmax_main():
         [0, 0, 100],
     ], device=get_device())
     y1 = manual_softmax(x)
+
+    if not torch.cuda.is_available():
+        return
 
     note("Now let us write the Triton kernel.")
     y2 = triton_softmax(x)
@@ -733,6 +760,8 @@ def triton_matmul_main():
     note("Why write your own kernel for matrix multiplication (e.g., A @ B)?")
     note("Answer: fusion with another operation (e.g., gelu(A @ B))")
 
+    if not torch.cuda.is_available():
+        return
     note("Let's try it!")
     benchmark("pytorch_matmul", run_operation2(dim=16384, operation=torch.matmul))
     benchmark("triton_matmul", run_operation2(dim=16384, operation=triton_matmul))

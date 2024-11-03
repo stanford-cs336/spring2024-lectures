@@ -108,7 +108,7 @@ def instruction_chat():
     note("Baize [Xu+ 2023]"), see("https://arxiv.org/pdf/2304.01196")
     note("Generate dataset (111.5K examples) from GPT-3.5 using self-chat (seeded with Quora and StackOverflow questions)")
     note("Fine-tune LLaMA on this dataset")
-    
+
     note("WizardLM [Xu+ 2023]"), see("https://arxiv.org/pdf/2304.12244")
     note("Evol-Instruct dataset ('evolve' questions to increase breadth/difficulty) (Figure 1)")
     note("Fine-tune LLaMA on this dataset")

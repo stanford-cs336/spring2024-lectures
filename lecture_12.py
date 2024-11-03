@@ -6,8 +6,6 @@ from torch.nn.functional import softmax
 import numpy as np
 import kenlm
 import fasttext
-import data_selection
-import sys
 
 from util import *
 
@@ -246,11 +244,6 @@ def filtering_summary():
     note("Importance resampling (DSIR)")
     note("1. score(x) = p_T(x) / p_R(x)")
     note("2. Resample examples x with probability proportional to score(x)")
-
-
-def product(list):
-    """Return the product of all elements in `list`."""
-    return np.prod(list)
 
 
 def language_identification():

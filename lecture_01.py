@@ -1,6 +1,5 @@
 import os
 import requests
-import torch.nn as nn
 from itertools import islice
 from typing import List, Iterable
 from util import *
@@ -259,7 +258,7 @@ def train_tokenizer(documents: Iterable[Document]) -> Tokenizer:
     return tiktoken.get_encoding("gpt2")
 
 
-class TransformerLM(nn.Module):
+class TransformerLM:
     def __init__(self):
         note("Original Transformer"), see(transformer)
         note("Many variants exist that improve on the original "

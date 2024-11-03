@@ -161,7 +161,7 @@ def bloom_filter():
 
     note("Optimal value of k (given fixed m / n ratio)")
     k = math.log(2) * m / n
-    
+
     note("Resulting false positive rate")
     f = 0.5 ** k
 
@@ -304,7 +304,7 @@ def locality_sensitive_hashing():
     note("Suppose we hash examples just one MinHash function")
     note("P[A and B collide] = Jaccard(A, B)")
     note("On average, more similar items will collide, but very stochastic...")
-    
+
     note("Solution: use n hash functions")
     note("Break up into b bands of r hash functions each (n = b * r)")
 
@@ -342,7 +342,7 @@ def locality_sensitive_hashing():
     note("Increasing b moves the curve to the left (easier to match)")
     image("https://cdn.sanity.io/images/vr8gru94/production/aace49fa240778e8ecf6e85ad08a2de7f5385566-1280x720.png")
 
-    note("What is the threshold?")   
+    note("What is the threshold?")
     b = 20
     r = 450
     threshold = (1 / b) ** (1 / r)
@@ -362,7 +362,7 @@ def copyright():
 
     note("Goal: *incentivize* the creation of intellectual goods")
     note("Types of intellectual property: copyright, patents, trademarks, trade secrets.")
-    
+
     note("## Copyright law")
 
     note("Goes back to 1709 in England (Statute of Anne), "
@@ -416,13 +416,13 @@ def copyright():
 
     note("1. The purpose and character of the use "
          "(educational favored over commercial, transformative favored over reproductive)")
-    
+
     note("2. The nature of the copyrighted work "
          "(fictional favored over factual, creativitive over non-creative)")
 
     note("3. The amount and substantiality of the portion of the original work used "
          "(using a snippet favored over using the whole work)")
-    
+
     note("4. The effect of the use upon the market (or potential market) for the original work")
 
     note("Examples of fair use:")
@@ -444,7 +444,7 @@ def copyright():
     note("Problem: language models can definitely affect the market (writers, artists)")
 
     note("## Terms of service")
-    
+
     note("Even if you have a license or can appeal to fair use, "
          "terms of service might impose additional restrictions.")
 

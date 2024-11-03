@@ -382,9 +382,14 @@ def tensor_operations_flops():
     note("- We have n points")
     note("- Each point is d-dimsional")
     note("- The linear model maps each d-dimensional vector to a k outputs")
-    B = 16384
-    D = 32768
-    K = 8192
+    if torch.cuda.is_available():
+        B = 16384  # Number of points
+        D = 32768  # Dimension
+        K = 8192   # Number of outputs
+    else:
+        B = 1024
+        D = 256
+        K = 64
 
     device = get_device()
     x = torch.ones(B, D, device=device)
@@ -478,9 +483,14 @@ def gradients_flops():
     note("Let us do count the FLOPs for computing gradients.")
 
     note("Revisit our linear model")
-    B = 16384  # Number of points
-    D = 32768  # Dimension
-    K = 8192   # Number of outputs
+    if torch.cuda.is_available():
+        B = 16384  # Number of points
+        D = 32768  # Dimension
+        K = 8192   # Number of outputs
+    else:
+        B = 1024
+        D = 256
+        K = 64
 
     device = get_device()
     x = torch.ones(B, D, device=device)
@@ -667,7 +677,8 @@ def get_batch(data: np.array, batch_size: int, sequence_length: int, device: str
     note("## Pinned memory")
 
     note("By default, CPU tensors are in paged memory. We can explicitly pin.")
-    x = x.pin_memory()
+    if torch.cuda.is_available():
+        x = x.pin_memory()
 
     note("This allows us to copy `x` from CPU into GPU asynchronously.")
     x = x.to(device, non_blocking=True)
@@ -918,6 +929,9 @@ def get_memory_usage(x: torch.Tensor):
 
 def get_promised_flop_per_sec(device: str, dtype: torch.dtype) -> float:
     """Return the peak FLOP/s for `device` operating on `dtype`."""
+    if not torch.cuda.is_available():
+        note("No CUDA device available, so can't get FLOP/s.")
+        return 1
     properties = torch.cuda.get_device_properties(device)
 
     if "A100" in properties.name:
@@ -947,14 +961,16 @@ def time_matmul(a: torch.Tensor, b: torch.Tensor) -> float:
     """Return the number of seconds required to perform `a @ b`."""
 
     # Wait until previous CUDA threads are done
-    torch.cuda.synchronize()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
 
     def run():
         # Perform the operation
         a @ b
 
         # Wait until CUDA threads are done
-        torch.cuda.synchronize()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
 
     # Time the operation times
     num_trials = 5
