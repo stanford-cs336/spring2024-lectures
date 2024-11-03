@@ -42,7 +42,7 @@ Check that the code works:
 Let's start with [lecture 1](lecture_01.py) as an example.
 
 1. Open up `main.py` in vscode (`code lecture_01.py`).
-1. Press R5 to start stepping through it.
+1. Set a breakpoint on the main function and press F5 to start stepping through it.
 1. Press F11 to dive into a section.
 1. Press F10 to step over a line.
 1. Mouse over variables to see their values.
