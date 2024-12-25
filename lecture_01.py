@@ -107,7 +107,7 @@ def why_this_course():
     note("There are three types of knowledge:")
     note("- Mechanics: how things work (what a Transformer is, how FSDP works)")
     note("- Mindset: squeezing performance, thinking about scale (scaling laws)")
-    note("- Intuitions: how to set hyperparmeters, process data, to get good performance")
+    note("- Intuitions: how to set hyperparameters, process data, to get good performance")
 
     note("We can teach mechanics and mindset (do transfer).")
     note("We cannot teach intuitions (do not necessarily transfer across scales).")
