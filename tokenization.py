@@ -8,7 +8,7 @@ import regex as re
 
 sample_text1 = "Hello, 🌍! 你好!"
 
-# https://github.com/openai/tiktoken/blob/main/tiktoken_ext/openai_public.py#L23
+# https://github.com/openai/tiktoken/blob/9d01e5670ff50eb74cdb96406c7f3d9add0ae2f8/tiktoken_ext/openai_public.py#L23
 GPT2_TOKENIZER_REGEX = \
     r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
@@ -219,7 +219,7 @@ def word_tokenizer():
     note("To turn this into a `Tokenizer`, we need to map these segments into integers.")
     note("Then, we can build a mapping from each segment into an integer.")
 
-    note("But ther are problems:")
+    note("But there are problems:")
     note("- The number of words is huge (like for Unicode characters).")
     note("- Many words are rare and the model won't learn much about them.")
     note("- We need a fixed vocabulary size.")
